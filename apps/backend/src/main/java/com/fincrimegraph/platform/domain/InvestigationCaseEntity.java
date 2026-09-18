@@ -30,6 +30,13 @@ public class InvestigationCaseEntity {
         CRITICAL
     }
 
+    public enum CaseDisposition {
+        NO_ACTION,
+        FALSE_POSITIVE,
+        ESCALATED,
+        SAR_RECOMMENDED
+    }
+
     @Id
     private UUID id;
 
@@ -72,6 +79,19 @@ public class InvestigationCaseEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "disposition", length = 40)
+    private CaseDisposition disposition;
+
+    @Column(
+            name = "resolution_summary",
+            length = 2000
+    )
+    private String resolutionSummary;
+
+    @Column(name = "closed_at")
+    private Instant closedAt;
+
     protected InvestigationCaseEntity() {
     }
 
@@ -97,15 +117,47 @@ public class InvestigationCaseEntity {
         this.primaryAlert = primaryAlert;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.disposition = null;
+        this.resolutionSummary = null;
+        this.closedAt = null;
     }
 
-    public void advance(Instant now) {
+    public void advance(
+            Instant now
+    ) {
         this.status = switch (this.status) {
-            case OPEN -> CaseStatus.IN_REVIEW;
-            case IN_REVIEW -> CaseStatus.CLOSED;
-            case CLOSED -> CaseStatus.CLOSED;
+            case OPEN ->
+                    CaseStatus.IN_REVIEW;
+
+            case IN_REVIEW -> {
+                this.closedAt = now;
+                yield CaseStatus.CLOSED;
+            }
+
+            case CLOSED ->
+                    CaseStatus.CLOSED;
         };
 
+        this.updatedAt = now;
+    }
+
+    public void assignTo(
+            String assignedTo,
+            Instant now
+    ) {
+        this.assignedTo = assignedTo;
+        this.updatedAt = now;
+    }
+
+    public void resolve(
+            CaseDisposition disposition,
+            String resolutionSummary,
+            Instant now
+    ) {
+        this.disposition = disposition;
+        this.resolutionSummary = resolutionSummary;
+        this.status = CaseStatus.CLOSED;
+        this.closedAt = now;
         this.updatedAt = now;
     }
 
@@ -147,5 +199,17 @@ public class InvestigationCaseEntity {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public CaseDisposition getDisposition() {
+        return disposition;
+    }
+
+    public String getResolutionSummary() {
+        return resolutionSummary;
+    }
+
+    public Instant getClosedAt() {
+        return closedAt;
     }
 }

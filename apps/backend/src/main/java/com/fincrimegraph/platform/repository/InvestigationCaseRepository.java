@@ -11,11 +11,27 @@ import java.util.UUID;
 public interface InvestigationCaseRepository
         extends JpaRepository<InvestigationCaseEntity, UUID> {
 
-    @EntityGraph(attributePaths = "primaryAlert")
-    List<InvestigationCaseEntity> findAllByOrderByUpdatedAtDesc();
+    @EntityGraph(attributePaths = {
+            "primaryAlert"
+    })
+    List<InvestigationCaseEntity>
+    findAllByOrderByUpdatedAtDesc();
 
-    @EntityGraph(attributePaths = "primaryAlert")
-    Optional<InvestigationCaseEntity> findByPrimaryAlert_Id(
+    @EntityGraph(attributePaths = {
+            "primaryAlert"
+    })
+    Optional<InvestigationCaseEntity>
+    findByPrimaryAlert_Id(
             UUID primaryAlertId
     );
+
+    @Override
+    @EntityGraph(attributePaths = {
+            "primaryAlert",
+            "primaryAlert.primaryAccount",
+            "primaryAlert.primaryAccount.customer",
+            "primaryAlert.transaction"
+    })
+    Optional<InvestigationCaseEntity>
+    findById(UUID id);
 }

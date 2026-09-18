@@ -482,3 +482,166 @@ Promise<InvestigationGraph> {
     "/api/v1/graph-investigation/cycles"
   );
 }
+
+export interface CaseWorkspacePrimaryAlert {
+  id: string;
+  code: string;
+  type: string;
+  severity: string;
+  riskScore: number;
+  status: string;
+  title: string;
+  accountNumber: string | null;
+  transactionReference: string | null;
+}
+
+export interface CaseWorkspaceNote {
+  id: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface CaseWorkspaceEvidence {
+  id: string;
+  evidenceType: string;
+  referenceType: string;
+  referenceId: string;
+  title: string;
+  description: string;
+  snapshotText: string;
+  createdAt: string;
+}
+
+export interface CaseWorkspaceEvent {
+  id: string;
+  eventType: string;
+  description: string;
+  actorName: string;
+  createdAt: string;
+}
+
+export interface CaseWorkspaceView {
+  id: string;
+  caseNumber: string;
+  title: string;
+  status: string;
+  priority: string;
+  summary: string;
+  assignedTo: string | null;
+  disposition: string | null;
+  resolutionSummary: string | null;
+  closedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  primaryAlert: CaseWorkspacePrimaryAlert;
+  notes: CaseWorkspaceNote[];
+  evidence: CaseWorkspaceEvidence[];
+  timeline: CaseWorkspaceEvent[];
+}
+
+export function fetchCaseWorkspace(
+  caseId: string,
+  signal?: AbortSignal
+): Promise<CaseWorkspaceView> {
+  return request<CaseWorkspaceView>(
+    `/api/v1/case-workspace/${caseId}`,
+    {
+      signal,
+    }
+  );
+}
+
+export function addCaseNote(
+  caseId: string,
+  author: string,
+  body: string
+): Promise<CaseWorkspaceView> {
+  return request<CaseWorkspaceView>(
+    `/api/v1/case-workspace/${caseId}/notes${buildQuery({
+      author,
+      body,
+    })}`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export function assignCase(
+  caseId: string,
+  assignee: string,
+  actor: string
+): Promise<CaseWorkspaceView> {
+  return request<CaseWorkspaceView>(
+    `/api/v1/case-workspace/${caseId}/assign${buildQuery({
+      assignee,
+      actor,
+    })}`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export function attachCaseAlertEvidence(
+  caseId: string,
+  alertId: string,
+  actor: string
+): Promise<CaseWorkspaceView> {
+  return request<CaseWorkspaceView>(
+    `/api/v1/case-workspace/${caseId}/evidence/alerts/${alertId}${buildQuery({
+      actor,
+    })}`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export function attachCaseTransactionEvidence(
+  caseId: string,
+  reference: string,
+  actor: string
+): Promise<CaseWorkspaceView> {
+  return request<CaseWorkspaceView>(
+    `/api/v1/case-workspace/${caseId}/evidence/transactions/${reference}${buildQuery({
+      actor,
+    })}`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export function attachCaseCircularGraphEvidence(
+  caseId: string,
+  actor: string
+): Promise<CaseWorkspaceView> {
+  return request<CaseWorkspaceView>(
+    `/api/v1/case-workspace/${caseId}/evidence/graph/circular-flows${buildQuery({
+      actor,
+    })}`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export function resolveCaseWorkspace(
+  caseId: string,
+  disposition: string,
+  summary: string,
+  actor: string
+): Promise<CaseWorkspaceView> {
+  return request<CaseWorkspaceView>(
+    `/api/v1/case-workspace/${caseId}/resolve${buildQuery({
+      disposition,
+      summary,
+      actor,
+    })}`,
+    {
+      method: "POST",
+    }
+  );
+}

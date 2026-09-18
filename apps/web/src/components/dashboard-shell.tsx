@@ -45,6 +45,7 @@ import {
 import { GraphExplorer } from "./graph-explorer";
 import { GraphInvestigationWorkbench } from "./graph-investigation-workbench";
 import { IntelligenceExplorer } from "./intelligence-explorer";
+import { CaseWorkspace } from "./case-workspace";
 
 const navItems = [
   {
@@ -465,6 +466,8 @@ export function DashboardShell() {
                   busyCaseId={caseActionId}
                   onAdvance={handleAdvanceCase}
                 />
+
+                <CaseWorkspace cases={cases} />
 
                 <IntelligenceExplorer />
 
