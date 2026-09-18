@@ -1826,3 +1826,80 @@ export function verifyEvidenceCustody(
     }
   );
 }
+
+export interface EvidenceReviewRecord {
+  id: string;
+  evidenceId: string;
+  caseId: string;
+  caseNumber: string;
+  evidenceReference: string;
+  title: string;
+  currentCustodian: string;
+  currentStatus: string;
+  reviewVersion: number;
+  reviewDecision: string;
+  reviewReason: string;
+  registryFingerprint: string;
+  custodyHeadHash: string;
+  reviewedBy: string;
+  reviewedAt: string;
+  lineageCurrent: boolean;
+}
+
+export function fetchEvidenceReviews(
+  signal?: AbortSignal
+): Promise<EvidenceReviewRecord[]> {
+  return request<EvidenceReviewRecord[]>(
+    "/api/v1/evidence-reviews",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchEvidenceReviewHistory(
+  evidenceId: string,
+  signal?: AbortSignal
+): Promise<EvidenceReviewRecord[]> {
+  return request<EvidenceReviewRecord[]>(
+    `/api/v1/evidence-reviews/evidence/${encodeURIComponent(
+      evidenceId
+    )}`,
+    {
+      signal,
+    }
+  );
+}
+
+export function reviewEvidence(
+  evidenceId: string,
+  reviewDecision: string,
+  reviewReason: string
+): Promise<EvidenceReviewRecord> {
+  const body =
+    new URLSearchParams();
+
+  body.set(
+    "reviewDecision",
+    reviewDecision
+  );
+
+  body.set(
+    "reviewReason",
+    reviewReason
+  );
+
+  return request<EvidenceReviewRecord>(
+    `/api/v1/evidence-reviews/evidence/${encodeURIComponent(
+      evidenceId
+    )}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    }
+  );
+}
