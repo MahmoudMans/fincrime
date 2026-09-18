@@ -1118,3 +1118,113 @@ Promise<CustomerRiskBatch> {
     }
   );
 }
+
+export interface ComplianceOverview {
+  totalAlerts: number;
+  activeAlerts: number;
+  totalCases: number;
+  openCases: number;
+  pendingWatchlistHits: number;
+  enabledAmlRules: number;
+  criticalRiskCustomers: number;
+  highRiskCustomers: number;
+  slaBreaches: number;
+  reportsExported: number;
+  alertSeverityDistribution: Record<string, number>;
+  casePriorityDistribution: Record<string, number>;
+  riskBandDistribution: Record<string, number>;
+  watchlistStatusDistribution: Record<string, number>;
+}
+
+export interface ComplianceSlaPolicy {
+  priority: string;
+  targetHours: number;
+  active: boolean;
+  description: string;
+  updatedAt: string;
+}
+
+export interface ComplianceCaseSla {
+  id: string;
+  caseId: string;
+  caseNumber: string;
+  priority: string;
+  caseStatus: string;
+  targetHours: number;
+  elapsedHours: number;
+  breachHours: number;
+  slaState: string;
+  calculatedAt: string;
+}
+
+export interface ComplianceSlaRecalculation {
+  calculatedAt: string;
+  casesEvaluated: number;
+  withinSlaCount: number;
+  breachCount: number;
+  closedCount: number;
+}
+
+export interface ComplianceActivity {
+  id: string;
+  username: string;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  outcome: string;
+  createdAt: string;
+}
+
+export function fetchComplianceOverview(
+  signal?: AbortSignal
+): Promise<ComplianceOverview> {
+  return request<ComplianceOverview>(
+    "/api/v1/compliance/overview",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchComplianceSlaPolicies(
+  signal?: AbortSignal
+): Promise<ComplianceSlaPolicy[]> {
+  return request<ComplianceSlaPolicy[]>(
+    "/api/v1/compliance/sla/policies",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchComplianceCaseSla(
+  signal?: AbortSignal
+): Promise<ComplianceCaseSla[]> {
+  return request<ComplianceCaseSla[]>(
+    "/api/v1/compliance/sla/cases",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchComplianceActivity(
+  signal?: AbortSignal
+): Promise<ComplianceActivity[]> {
+  return request<ComplianceActivity[]>(
+    "/api/v1/compliance/activity",
+    {
+      signal,
+    }
+  );
+}
+
+export function recalculateComplianceSla():
+Promise<ComplianceSlaRecalculation> {
+  return request<ComplianceSlaRecalculation>(
+    "/api/v1/compliance/sla/recalculate",
+    {
+      method: "POST",
+    }
+  );
+}
