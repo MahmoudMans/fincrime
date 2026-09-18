@@ -1290,3 +1290,120 @@ Promise<SecurityAuditLedgerRefresh> {
     }
   );
 }
+
+export interface InvestigationTriageQueueItem {
+  id: string;
+  runId: string;
+  caseId: string;
+  caseNumber: string;
+  casePriority: string;
+  caseStatus: string;
+  triageScore: number;
+  triageBand: string;
+  priorityPoints: number;
+  slaPoints: number;
+  agePoints: number;
+  statusPoints: number;
+  explanation: string;
+  calculatedAt: string;
+  ownerUsername: string | null;
+  assignedBy: string | null;
+  assignmentNote: string | null;
+  assignedAt: string | null;
+}
+
+export interface InvestigationTriageRun {
+  id: string;
+  calculatedBy: string;
+  calculatedAt: string;
+  caseCount: number;
+  urgentCount: number;
+  highCount: number;
+  mediumCount: number;
+  routineCount: number;
+  queue: InvestigationTriageQueueItem[];
+}
+
+export interface InvestigationTriageRunSummary {
+  id: string;
+  calculatedBy: string;
+  calculatedAt: string;
+  caseCount: number;
+  urgentCount: number;
+  highCount: number;
+  mediumCount: number;
+  routineCount: number;
+}
+
+export interface InvestigationQueueOwnership {
+  caseId: string;
+  ownerUsername: string;
+  assignedBy: string;
+  assignmentNote: string;
+  assignedAt: string;
+}
+
+export function fetchInvestigationTriageQueue(
+  signal?: AbortSignal
+): Promise<InvestigationTriageQueueItem[]> {
+  return request<InvestigationTriageQueueItem[]>(
+    "/api/v1/investigation-triage/queue",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchInvestigationTriageRuns(
+  signal?: AbortSignal
+): Promise<InvestigationTriageRunSummary[]> {
+  return request<InvestigationTriageRunSummary[]>(
+    "/api/v1/investigation-triage/runs",
+    {
+      signal,
+    }
+  );
+}
+
+export function recalculateInvestigationTriage():
+Promise<InvestigationTriageRun> {
+  return request<InvestigationTriageRun>(
+    "/api/v1/investigation-triage/recalculate",
+    {
+      method: "POST",
+    }
+  );
+}
+
+export function assignInvestigationQueueOwner(
+  caseId: string,
+  ownerUsername: string,
+  assignmentNote: string
+): Promise<InvestigationQueueOwnership> {
+  const body =
+    new URLSearchParams();
+
+  body.set(
+    "ownerUsername",
+    ownerUsername
+  );
+
+  body.set(
+    "assignmentNote",
+    assignmentNote
+  );
+
+  return request<InvestigationQueueOwnership>(
+    `/api/v1/investigation-triage/cases/${encodeURIComponent(
+      caseId
+    )}/owner`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    }
+  );
+}

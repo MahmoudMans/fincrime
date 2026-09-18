@@ -45,6 +45,7 @@ import {
 
 import { useAuth } from "./auth-context";
 import { GraphExplorer } from "./graph-explorer";
+import { InvestigationTriage } from "./investigation-triage";
 import { SecurityAuditLedger } from "./security-audit-ledger";
 import { ComplianceOperations } from "./compliance-operations";
 import { CustomerRiskDashboard } from "./customer-risk-dashboard";
@@ -517,6 +518,8 @@ export function DashboardShell() {
                 </div>
 
                 <SecurityAuditLedger />
+
+                <InvestigationTriage />
 
                 <ComplianceOperations />
 

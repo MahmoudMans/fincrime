@@ -6691,3 +6691,619 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   STEP 13 — EXPLAINABLE INVESTIGATION TRIAGE
+   ========================================================================== */
+
+.triage-panel {
+  margin-top: 16px;
+}
+
+.triage-heading {
+  align-items: center;
+}
+
+.triage-error {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  margin: 12px 16px 0;
+  padding: 9px 10px;
+
+  border:
+    1px solid rgba(240, 92, 105, 0.25);
+
+  border-radius: 7px;
+
+  color: #ff8792;
+  background: var(--red-soft);
+
+  font-size: 8px;
+}
+
+.triage-metrics {
+  display: grid;
+  grid-template-columns:
+    repeat(5, minmax(0, 1fr));
+
+  margin: 14px 16px 0;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 8px;
+
+  overflow: hidden;
+}
+
+.triage-metric {
+  position: relative;
+
+  min-height: 74px;
+
+  padding: 10px;
+
+  border-right:
+    1px solid var(--border-soft);
+}
+
+.triage-metric:last-child {
+  border-right: 0;
+}
+
+.triage-metric > div {
+  position: absolute;
+
+  top: 10px;
+  right: 10px;
+
+  color: #537ba5;
+}
+
+.triage-metric span {
+  display: block;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.triage-metric strong {
+  display: block;
+
+  margin-top: 9px;
+
+  color: #d8e4f0;
+
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.triage-layout {
+  display: grid;
+  grid-template-columns:
+    330px minmax(0, 1fr);
+
+  min-height: 560px;
+
+  margin-top: 12px;
+
+  border-top:
+    1px solid var(--border-soft);
+}
+
+.triage-list {
+  max-height: 600px;
+
+  overflow: auto;
+
+  border-right:
+    1px solid var(--border-soft);
+}
+
+.triage-row {
+  width: 100%;
+
+  min-height: 73px;
+
+  display: grid;
+  grid-template-columns:
+    47px minmax(0, 1fr) auto;
+
+  align-items: center;
+
+  gap: 9px;
+
+  padding: 10px 11px;
+
+  border: 0;
+  border-bottom:
+    1px solid var(--border-soft);
+
+  background: transparent;
+
+  text-align: left;
+  cursor: pointer;
+}
+
+.triage-row:hover {
+  background:
+    rgba(255, 255, 255, 0.018);
+}
+
+.triage-row.selected {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(52, 127, 245, 0.11),
+      transparent
+    );
+
+  box-shadow:
+    inset 2px 0 var(--blue);
+}
+
+.triage-score {
+  width: 44px;
+  height: 44px;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 9px;
+}
+
+.triage-score strong {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.triage-score span {
+  margin-top: 2px;
+
+  font-size: 5px;
+
+  opacity: 0.72;
+}
+
+.triage-score.large {
+  width: 72px;
+  height: 67px;
+}
+
+.triage-score.large strong {
+  font-size: 22px;
+}
+
+.triage-score.large span {
+  font-size: 7px;
+}
+
+.triage-urgent {
+  color: #ff7783;
+  background: var(--red-soft);
+}
+
+.triage-high {
+  color: #f0b466;
+
+  background:
+    rgba(240, 180, 102, 0.09);
+}
+
+.triage-medium {
+  color: #76a8da;
+  background: var(--blue-soft);
+}
+
+.triage-routine {
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.triage-row-copy {
+  min-width: 0;
+}
+
+.triage-row-copy strong {
+  display: block;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  color: #d5e2ef;
+
+  font-size: 9px;
+}
+
+.triage-row-copy span {
+  display: block;
+
+  margin-top: 4px;
+
+  color: var(--text-soft);
+
+  font-size: 7px;
+}
+
+.triage-row-meta {
+  display: flex;
+  flex-direction: column;
+
+  align-items: flex-end;
+
+  gap: 4px;
+}
+
+.triage-row-meta strong {
+  font-size: 7px;
+}
+
+.triage-row-meta span {
+  color: var(--text-soft);
+
+  font-size: 6px;
+}
+
+.triage-detail {
+  min-width: 0;
+
+  padding: 17px;
+}
+
+.triage-detail-head {
+  display: flex;
+
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  padding-bottom: 14px;
+
+  border-bottom:
+    1px solid var(--border-soft);
+}
+
+.triage-detail-head h3 {
+  margin: 5px 0 3px;
+
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.triage-detail-head p {
+  margin: 0;
+
+  color: var(--text-muted);
+
+  font-size: 8px;
+}
+
+.triage-factor-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+
+  gap: 8px;
+
+  margin-top: 12px;
+}
+
+.triage-factor {
+  padding: 9px;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 7px;
+
+  background:
+    rgba(255, 255, 255, 0.013);
+}
+
+.triage-factor span {
+  display: block;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.triage-factor strong {
+  display: block;
+
+  margin-top: 5px;
+
+  color: #d1dfec;
+
+  font-size: 11px;
+}
+
+.triage-explanation {
+  display: flex;
+
+  align-items: flex-start;
+
+  gap: 8px;
+
+  margin-top: 11px;
+
+  padding: 9px 10px;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 7px;
+
+  color: #75a7da;
+  background: var(--blue-soft);
+}
+
+.triage-explanation span {
+  color: var(--text-muted);
+
+  font-size: 7px;
+
+  line-height: 1.55;
+}
+
+.triage-owner-card {
+  margin-top: 12px;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 8px;
+
+  overflow: hidden;
+}
+
+.triage-owner-heading {
+  min-height: 42px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 10px;
+
+  padding: 0 11px;
+
+  border-bottom:
+    1px solid var(--border-soft);
+}
+
+.triage-owner-heading > div {
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  color: #75a7da;
+}
+
+.triage-owner-heading strong {
+  color: #d3e0ed;
+
+  font-size: 9px;
+}
+
+.triage-owner-heading > span {
+  color: var(--text-soft);
+
+  font-size: 7px;
+}
+
+.triage-owner-form {
+  display: grid;
+
+  grid-template-columns:
+    minmax(190px, 0.55fr)
+    minmax(260px, 1fr)
+    auto;
+
+  align-items: end;
+
+  gap: 8px;
+
+  padding: 10px;
+}
+
+.triage-owner-form label {
+  display: block;
+}
+
+.triage-owner-form label > span {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.triage-owner-form select,
+.triage-owner-form input {
+  width: 100%;
+
+  min-height: 33px;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 6px;
+
+  padding: 0 8px;
+
+  color: #d2dfeb;
+  background: rgba(0, 0, 0, 0.15);
+
+  font-size: 7px;
+}
+
+.triage-owner-current {
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  padding: 8px 10px;
+
+  border-top:
+    1px solid var(--border-soft);
+
+  color: var(--green);
+
+  background: var(--green-soft);
+}
+
+.triage-owner-current span {
+  color: var(--text-muted);
+
+  font-size: 7px;
+}
+
+.triage-owner-current strong {
+  color: var(--green);
+}
+
+.triage-history {
+  min-height: 42px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  margin: 0 16px 16px;
+
+  padding: 0 10px;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 7px;
+}
+
+.triage-history > div {
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  color: #75a7da;
+}
+
+.triage-history strong {
+  color: #d0deeb;
+
+  font-size: 8px;
+}
+
+.triage-history > span {
+  color: var(--text-soft);
+
+  font-size: 7px;
+}
+
+.triage-empty {
+  min-height: 270px;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 6px;
+
+  color: var(--text-soft);
+
+  text-align: center;
+}
+
+.triage-empty strong {
+  color: var(--text-muted);
+
+  font-size: 9px;
+}
+
+.triage-empty span {
+  max-width: 280px;
+
+  font-size: 7px;
+
+  line-height: 1.5;
+}
+
+@media (max-width: 1000px) {
+  .triage-layout {
+    grid-template-columns:
+      285px minmax(0, 1fr);
+  }
+
+  .triage-owner-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .triage-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .triage-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .triage-list {
+    max-height: 300px;
+
+    border-right: 0;
+    border-bottom:
+      1px solid var(--border-soft);
+  }
+
+  .triage-factor-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .triage-metrics {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .triage-metric {
+    border-bottom:
+      1px solid var(--border-soft);
+  }
+
+  .triage-factor-grid {
+    grid-template-columns: 1fr;
+  }
+}
