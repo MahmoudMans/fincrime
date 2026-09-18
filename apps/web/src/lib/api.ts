@@ -1653,3 +1653,176 @@ export function verifyCaseOutcomeAttestation(
     }
   );
 }
+
+export interface EvidenceCustodyRecord {
+  id: string;
+  caseId: string;
+  caseNumber: string;
+  evidenceReference: string;
+  evidenceType: string;
+  title: string;
+  sourceReference: string;
+  description: string;
+  contentSha256: string;
+  registryFingerprint: string;
+  currentCustodian: string;
+  currentStatus: string;
+  registeredBy: string;
+  registeredAt: string;
+  custodyEventCount: number;
+}
+
+export interface EvidenceCustodyEvent {
+  id: string;
+  evidenceId: string;
+  sequenceNumber: number;
+  eventType: string;
+  fromCustodian: string | null;
+  toCustodian: string | null;
+  actorUsername: string;
+  eventNote: string;
+  previousEventHash: string;
+  eventHash: string;
+  occurredAt: string;
+}
+
+export interface EvidenceIntegrityVerification {
+  evidenceId: string;
+  registryFingerprintValid: boolean;
+  custodyChainValid: boolean;
+  integrityValid: boolean;
+  eventCount: number;
+  currentCustodian: string;
+  currentStatus: string;
+  detail: string;
+  verifiedBy: string;
+  verifiedAt: string;
+}
+
+export function fetchEvidenceCustodyRegistry(
+  signal?: AbortSignal
+): Promise<EvidenceCustodyRecord[]> {
+  return request<EvidenceCustodyRecord[]>(
+    "/api/v1/evidence-custody",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchEvidenceCustodyEvents(
+  evidenceId: string,
+  signal?: AbortSignal
+): Promise<EvidenceCustodyEvent[]> {
+  return request<EvidenceCustodyEvent[]>(
+    `/api/v1/evidence-custody/${encodeURIComponent(
+      evidenceId
+    )}/events`,
+    {
+      signal,
+    }
+  );
+}
+
+export function registerEvidenceCustody(
+  caseId: string,
+  evidenceReference: string,
+  evidenceType: string,
+  title: string,
+  sourceReference: string,
+  description: string,
+  contentSha256: string
+): Promise<EvidenceCustodyRecord> {
+  const body =
+    new URLSearchParams();
+
+  body.set(
+    "evidenceReference",
+    evidenceReference
+  );
+
+  body.set(
+    "evidenceType",
+    evidenceType
+  );
+
+  body.set(
+    "title",
+    title
+  );
+
+  body.set(
+    "sourceReference",
+    sourceReference
+  );
+
+  body.set(
+    "description",
+    description
+  );
+
+  body.set(
+    "contentSha256",
+    contentSha256
+  );
+
+  return request<EvidenceCustodyRecord>(
+    `/api/v1/evidence-custody/cases/${encodeURIComponent(
+      caseId
+    )}/register`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    }
+  );
+}
+
+export function transferEvidenceCustody(
+  evidenceId: string,
+  toCustodian: string,
+  transferNote: string
+): Promise<EvidenceCustodyRecord> {
+  const body =
+    new URLSearchParams();
+
+  body.set(
+    "toCustodian",
+    toCustodian
+  );
+
+  body.set(
+    "transferNote",
+    transferNote
+  );
+
+  return request<EvidenceCustodyRecord>(
+    `/api/v1/evidence-custody/${encodeURIComponent(
+      evidenceId
+    )}/transfer`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    }
+  );
+}
+
+export function verifyEvidenceCustody(
+  evidenceId: string
+): Promise<EvidenceIntegrityVerification> {
+  return request<EvidenceIntegrityVerification>(
+    `/api/v1/evidence-custody/${encodeURIComponent(
+      evidenceId
+    )}/verify`,
+    {
+      method: "POST",
+    }
+  );
+}

@@ -45,6 +45,7 @@ import {
 
 import { useAuth } from "./auth-context";
 import { GraphExplorer } from "./graph-explorer";
+import { EvidenceChainOfCustody } from "./evidence-chain-of-custody";
 import { OutcomeAttestations } from "./outcome-attestations";
 import { DecisionExecution } from "./decision-execution";
 import { DecisionGovernance } from "./decision-governance";
@@ -522,7 +523,9 @@ export function DashboardShell() {
 
                 <SecurityAuditLedger />
 
-                <OutcomeAttestations />
+                <EvidenceChainOfCustody />
+
+<OutcomeAttestations />
 
 <DecisionExecution />
 

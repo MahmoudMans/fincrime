@@ -8239,3 +8239,599 @@ tbody tr:hover {
       1px solid var(--border-soft);
   }
 }
+
+/* ==========================================================================
+   STEP 17 — EVIDENCE CHAIN OF CUSTODY
+   ========================================================================== */
+
+.evidence-custody-panel {
+  margin-top: 16px;
+}
+
+.evidence-custody-heading {
+  align-items: center;
+}
+
+.evidence-custody-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 7px 9px;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 6px;
+
+  color: #75a8da;
+
+  background: var(--blue-soft);
+
+  font-size: 7px;
+}
+
+.evidence-custody-error {
+  margin: 12px 16px 0;
+
+  padding: 9px 10px;
+
+  border:
+    1px solid rgba(240, 92, 105, 0.25);
+
+  border-radius: 7px;
+
+  color: #ff8792;
+
+  background: var(--red-soft);
+
+  font-size: 8px;
+}
+
+.evidence-custody-metrics {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  margin: 14px 16px 0;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 8px;
+
+  overflow: hidden;
+}
+
+.evidence-custody-metric {
+  min-height: 70px;
+
+  padding: 10px;
+
+  border-right:
+    1px solid var(--border-soft);
+}
+
+.evidence-custody-metric:last-child {
+  border-right: 0;
+}
+
+.evidence-custody-metric span {
+  display: block;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+
+  letter-spacing: 0.05em;
+
+  text-transform: uppercase;
+}
+
+.evidence-custody-metric strong {
+  display: block;
+
+  margin-top: 9px;
+
+  color: #d7e4f0;
+
+  font-size: 19px;
+
+  font-weight: 650;
+}
+
+.evidence-register-card {
+  margin: 12px 16px 0;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 8px;
+
+  overflow: hidden;
+}
+
+.evidence-card-heading {
+  min-height: 40px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 10px;
+
+  padding: 0 10px;
+
+  border-bottom:
+    1px solid var(--border-soft);
+}
+
+.evidence-card-heading > div {
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  color: #75a7da;
+}
+
+.evidence-card-heading strong {
+  color: #d3e0ec;
+
+  font-size: 8px;
+}
+
+.evidence-card-heading > span {
+  color: var(--text-soft);
+
+  font-size: 6px;
+}
+
+.evidence-register-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(5, minmax(0, 1fr));
+
+  align-items: end;
+
+  gap: 8px;
+
+  padding: 10px;
+}
+
+.evidence-register-grid label,
+.evidence-transfer-grid label {
+  display: block;
+}
+
+.evidence-register-grid label > span,
+.evidence-transfer-grid label > span {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+
+  letter-spacing: 0.05em;
+
+  text-transform: uppercase;
+}
+
+.evidence-register-grid input,
+.evidence-register-grid select,
+.evidence-transfer-grid input,
+.evidence-transfer-grid select {
+  width: 100%;
+
+  min-height: 34px;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 6px;
+
+  padding: 0 8px;
+
+  color: #d2dfeb;
+
+  background:
+    rgba(0, 0, 0, 0.15);
+
+  font-size: 7px;
+}
+
+.evidence-register-wide {
+  grid-column:
+    span 2;
+}
+
+.evidence-custody-layout {
+  display: grid;
+
+  grid-template-columns:
+    300px minmax(0, 1fr);
+
+  min-height: 580px;
+
+  margin-top: 12px;
+
+  border-top:
+    1px solid var(--border-soft);
+}
+
+.evidence-registry-list {
+  max-height: 650px;
+
+  overflow: auto;
+
+  border-right:
+    1px solid var(--border-soft);
+}
+
+.evidence-registry-row {
+  width: 100%;
+
+  min-height: 65px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 10px;
+
+  padding: 9px 10px;
+
+  border: 0;
+
+  border-bottom:
+    1px solid var(--border-soft);
+
+  color: inherit;
+
+  background: transparent;
+
+  text-align: left;
+
+  cursor: pointer;
+}
+
+.evidence-registry-row.selected {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(52, 127, 245, 0.11),
+      transparent
+    );
+
+  box-shadow:
+    inset 2px 0 var(--blue);
+}
+
+.evidence-registry-row strong {
+  display: block;
+
+  color: #d4e1ed;
+
+  font-size: 8px;
+}
+
+.evidence-registry-row span {
+  display: block;
+
+  margin-top: 3px;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+}
+
+.evidence-registry-status {
+  flex: 0 0 auto;
+
+  padding: 5px 7px;
+
+  border-radius: 5px;
+
+  color: #76a8da;
+
+  background: var(--blue-soft);
+
+  font-size: 6px;
+}
+
+.evidence-custody-workspace {
+  min-width: 0;
+
+  padding: 16px;
+}
+
+.evidence-detail-head {
+  display: flex;
+
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  gap: 15px;
+
+  padding-bottom: 12px;
+
+  border-bottom:
+    1px solid var(--border-soft);
+}
+
+.evidence-detail-head h3 {
+  margin: 5px 0 3px;
+
+  font-size: 17px;
+
+  font-weight: 650;
+}
+
+.evidence-detail-head p {
+  margin: 0;
+
+  color: var(--text-muted);
+
+  font-size: 7px;
+}
+
+.evidence-integrity-state {
+  display: flex;
+
+  align-items: center;
+
+  gap: 5px;
+
+  padding: 6px 8px;
+
+  border-radius: 6px;
+
+  color: #e6b268;
+
+  background:
+    rgba(230, 178, 104, 0.09);
+
+  font-size: 6px;
+
+  font-weight: 700;
+}
+
+.evidence-integrity-state.valid {
+  color: var(--green);
+
+  background: var(--green-soft);
+}
+
+.evidence-hash-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 8px;
+
+  margin-top: 12px;
+}
+
+.evidence-hash-value {
+  min-width: 0;
+
+  padding: 9px;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 7px;
+
+  background:
+    rgba(255, 255, 255, 0.01);
+}
+
+.evidence-hash-value span {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+
+  text-transform: uppercase;
+}
+
+.evidence-hash-value code {
+  overflow-wrap: anywhere;
+
+  color: #a9c4de;
+
+  font-size: 7px;
+}
+
+.evidence-transfer-card,
+.evidence-event-card {
+  margin-top: 10px;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 8px;
+
+  overflow: hidden;
+}
+
+.evidence-transfer-grid {
+  display: grid;
+
+  grid-template-columns:
+    190px minmax(0, 1fr) auto auto;
+
+  align-items: end;
+
+  gap: 8px;
+
+  padding: 10px;
+}
+
+.evidence-event-row {
+  display: grid;
+
+  grid-template-columns:
+    34px minmax(0, 1fr);
+
+  gap: 8px;
+
+  padding: 10px;
+
+  border-bottom:
+    1px solid var(--border-soft);
+}
+
+.evidence-event-row:last-child {
+  border-bottom: 0;
+}
+
+.evidence-event-sequence {
+  width: 31px;
+  height: 31px;
+
+  display: grid;
+
+  place-items: center;
+
+  border-radius: 7px;
+
+  color: #75a7da;
+
+  background: var(--blue-soft);
+
+  font-size: 7px;
+
+  font-weight: 700;
+}
+
+.evidence-event-row strong {
+  display: block;
+
+  color: #d3e0ec;
+
+  font-size: 8px;
+}
+
+.evidence-event-row span {
+  display: block;
+
+  margin-top: 3px;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+}
+
+.evidence-event-row p {
+  margin: 6px 0 0;
+
+  color: var(--text-muted);
+
+  font-size: 7px;
+
+  line-height: 1.45;
+}
+
+.evidence-event-row code {
+  display: block;
+
+  margin-top: 6px;
+
+  overflow-wrap: anywhere;
+
+  color: #8caac6;
+
+  font-size: 6px;
+}
+
+.evidence-custody-empty {
+  min-height: 160px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 6px;
+
+  padding: 15px;
+
+  color: var(--text-soft);
+
+  text-align: center;
+}
+
+.evidence-custody-empty.large {
+  min-height: 400px;
+}
+
+.evidence-custody-empty strong {
+  color: var(--text-muted);
+
+  font-size: 9px;
+}
+
+@media (max-width: 1050px) {
+  .evidence-register-grid {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+  }
+
+  .evidence-transfer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 820px) {
+  .evidence-custody-heading {
+    align-items: stretch;
+
+    flex-direction: column;
+  }
+
+  .evidence-custody-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .evidence-registry-list {
+    max-height: 280px;
+
+    border-right: 0;
+
+    border-bottom:
+      1px solid var(--border-soft);
+  }
+
+  .evidence-hash-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .evidence-custody-metrics,
+  .evidence-register-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .evidence-register-wide {
+    grid-column: auto;
+  }
+}
