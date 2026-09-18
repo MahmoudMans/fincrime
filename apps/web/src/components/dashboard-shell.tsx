@@ -45,6 +45,7 @@ import {
 
 import { useAuth } from "./auth-context";
 import { GraphExplorer } from "./graph-explorer";
+import { RuleGovernance } from "./rule-governance";
 import { GraphInvestigationWorkbench } from "./graph-investigation-workbench";
 import { IntelligenceExplorer } from "./intelligence-explorer";
 import { CaseWorkspace } from "./case-workspace";
@@ -510,6 +511,8 @@ export function DashboardShell() {
                     onOpenCase={handleOpenCase}
                   />
                 </div>
+
+                <RuleGovernance />
 
                 <GraphInvestigationWorkbench />
 

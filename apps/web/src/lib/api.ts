@@ -743,3 +743,108 @@ export function fetchSecurityAudit(
     }
   );
 }
+
+export interface DetectionRule {
+  id: string;
+  ruleKey: string;
+  displayName: string;
+  description: string;
+  enabled: boolean;
+  severity: string;
+  riskScore: number;
+  primaryAmountThreshold: number | null;
+  secondaryAmountThreshold: number | null;
+  aggregateAmountThreshold: number | null;
+  minimumOccurrences: number | null;
+  windowMinutes: number | null;
+  version: number;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface DetectionRuleChange {
+  id: string;
+  ruleKey: string;
+  version: number;
+  changedBy: string;
+  changeSummary: string;
+  enabled: boolean;
+  severity: string;
+  riskScore: number;
+  primaryAmountThreshold: number | null;
+  secondaryAmountThreshold: number | null;
+  aggregateAmountThreshold: number | null;
+  minimumOccurrences: number | null;
+  windowMinutes: number | null;
+  changedAt: string;
+}
+
+export function fetchDetectionRules(
+  signal?: AbortSignal
+): Promise<DetectionRule[]> {
+  return request<DetectionRule[]>(
+    "/api/v1/detection-rules",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchDetectionRuleHistory(
+  ruleKey: string,
+  signal?: AbortSignal
+): Promise<DetectionRuleChange[]> {
+  return request<DetectionRuleChange[]>(
+    `/api/v1/detection-rules/${encodeURIComponent(
+      ruleKey
+    )}/history`,
+    {
+      signal,
+    }
+  );
+}
+
+export function updateDetectionRule(
+  ruleKey: string,
+  values: {
+    enabled: boolean;
+    severity: string;
+    riskScore: number;
+    primaryAmountThreshold?: number | null;
+    secondaryAmountThreshold?: number | null;
+    aggregateAmountThreshold?: number | null;
+    minimumOccurrences?: number | null;
+    windowMinutes?: number | null;
+    changeSummary: string;
+  }
+): Promise<DetectionRule> {
+  return request<DetectionRule>(
+    `/api/v1/detection-rules/${encodeURIComponent(
+      ruleKey
+    )}${buildQuery({
+      enabled: String(values.enabled),
+      severity: values.severity,
+      riskScore: values.riskScore,
+      primaryAmountThreshold:
+        values.primaryAmountThreshold ??
+        undefined,
+      secondaryAmountThreshold:
+        values.secondaryAmountThreshold ??
+        undefined,
+      aggregateAmountThreshold:
+        values.aggregateAmountThreshold ??
+        undefined,
+      minimumOccurrences:
+        values.minimumOccurrences ??
+        undefined,
+      windowMinutes:
+        values.windowMinutes ??
+        undefined,
+      changeSummary:
+        values.changeSummary,
+    })}`,
+    {
+      method: "POST",
+    }
+  );
+}

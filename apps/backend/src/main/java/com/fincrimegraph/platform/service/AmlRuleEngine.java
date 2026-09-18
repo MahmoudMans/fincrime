@@ -24,41 +24,85 @@ public class AmlRuleEngine {
 
     public static final int RULE_COUNT = 5;
 
-    private static final BigDecimal STRUCTURING_MIN =
-            new BigDecimal("4000");
-
-    private static final BigDecimal STRUCTURING_MAX =
-            new BigDecimal("10000");
-
-    private static final BigDecimal STRUCTURING_TOTAL =
-            new BigDecimal("10000");
-
-    private static final BigDecimal LARGE_CROSS_BORDER =
-            new BigDecimal("25000");
-
-    private static final BigDecimal HIGH_RISK_EXPOSURE =
-            new BigDecimal("10000");
-
     public List<DetectionCandidate> evaluate(
             List<TransactionEntity> transactions
+    ) {
+        return evaluate(
+                transactions,
+                RuleConfiguration.defaults()
+        );
+    }
+
+    public List<DetectionCandidate> evaluate(
+            List<TransactionEntity> transactions,
+            RuleConfiguration configuration
     ) {
         Map<String, DetectionCandidate> results =
                 new LinkedHashMap<>();
 
-        addAll(results, detectCircularFlows(transactions));
-        addAll(results, detectStructuring(transactions));
-        addAll(results, detectLargeCrossBorder(transactions));
-        addAll(results, detectHighRiskCounterparties(transactions));
-        addAll(results, detectVelocityAnomalies(transactions));
+        if (configuration.circularFlow().enabled()) {
+            addAll(
+                    results,
+                    detectCircularFlows(
+                            transactions,
+                            configuration.circularFlow()
+                    )
+            );
+        }
 
-        return List.copyOf(results.values());
+        if (configuration.structuring().enabled()) {
+            addAll(
+                    results,
+                    detectStructuring(
+                            transactions,
+                            configuration.structuring()
+                    )
+            );
+        }
+
+        if (configuration.largeCrossBorder().enabled()) {
+            addAll(
+                    results,
+                    detectLargeCrossBorder(
+                            transactions,
+                            configuration.largeCrossBorder()
+                    )
+            );
+        }
+
+        if (configuration.highRiskCounterparty().enabled()) {
+            addAll(
+                    results,
+                    detectHighRiskCounterparties(
+                            transactions,
+                            configuration.highRiskCounterparty()
+                    )
+            );
+        }
+
+        if (configuration.velocityAnomaly().enabled()) {
+            addAll(
+                    results,
+                    detectVelocityAnomalies(
+                            transactions,
+                            configuration.velocityAnomaly()
+                    )
+            );
+        }
+
+        return List.copyOf(
+                results.values()
+        );
     }
 
     private void addAll(
             Map<String, DetectionCandidate> target,
             List<DetectionCandidate> candidates
     ) {
-        for (DetectionCandidate candidate : candidates) {
+        for (
+                DetectionCandidate candidate
+                        : candidates
+        ) {
             target.putIfAbsent(
                     candidate.alertCode(),
                     candidate
@@ -67,7 +111,8 @@ public class AmlRuleEngine {
     }
 
     private List<DetectionCandidate> detectCircularFlows(
-            List<TransactionEntity> transactions
+            List<TransactionEntity> transactions,
+            RuleSetting setting
     ) {
         List<DetectionCandidate> results =
                 new ArrayList<>();
@@ -91,7 +136,9 @@ public class AmlRuleEngine {
 
                 if (!second
                         .getOccurredAt()
-                        .isAfter(first.getOccurredAt())) {
+                        .isAfter(
+                                first.getOccurredAt()
+                        )) {
                     continue;
                 }
 
@@ -121,7 +168,9 @@ public class AmlRuleEngine {
 
                     if (!third
                             .getOccurredAt()
-                            .isAfter(second.getOccurredAt())) {
+                            .isAfter(
+                                    second.getOccurredAt()
+                            )) {
                         continue;
                     }
 
@@ -140,22 +189,28 @@ public class AmlRuleEngine {
                                     .getDestinationAccount()
                                     .getAccountNumber();
 
-                    if (accountA.equals(accountB)
-                            || accountA.equals(accountC)
-                            || accountB.equals(accountC)) {
+                    if (
+                            accountA.equals(accountB)
+                                    || accountA.equals(accountC)
+                                    || accountB.equals(accountC)
+                    ) {
                         continue;
                     }
 
-                    Duration cycleDuration =
+                    Duration duration =
                             Duration.between(
                                     first.getOccurredAt(),
                                     third.getOccurredAt()
                             );
 
-                    if (cycleDuration.isNegative()
-                            || cycleDuration.compareTo(
-                                    Duration.ofMinutes(90)
-                            ) > 0) {
+                    if (
+                            duration.isNegative()
+                                    || duration.compareTo(
+                                            Duration.ofMinutes(
+                                                    setting.windowMinutes()
+                                            )
+                                    ) > 0
+                    ) {
                         continue;
                     }
 
@@ -175,27 +230,29 @@ public class AmlRuleEngine {
                                     cycleAccounts
                             );
 
-                    if (!detectedCycles.add(cycleKey)) {
+                    if (!detectedCycles.add(
+                            cycleKey
+                    )) {
                         continue;
                     }
-
-                    String primaryAccount =
-                            cycleAccounts.getFirst();
 
                     results.add(
                             new DetectionCandidate(
                                     "AUTO-CIRC-"
-                                            + stableToken(cycleKey),
-                                    AlertEntity.AlertType.CIRCULAR_FLOW,
-                                    AlertEntity.AlertSeverity.CRITICAL,
-                                    96,
+                                            + stableToken(
+                                                    cycleKey
+                                            ),
+                                    AlertEntity.AlertType
+                                            .CIRCULAR_FLOW,
+                                    setting.severity(),
+                                    setting.riskScore(),
                                     "Circular money flow detected",
                                     "Three accounts formed a closed transfer cycle "
                                             + "within "
-                                            + cycleDuration.toMinutes()
-                                            + " minutes, returning funds to "
-                                            + "the originating relationship.",
-                                    primaryAccount,
+                                            + duration.toMinutes()
+                                            + " minutes.",
+                                    cycleAccounts
+                                            .getFirst(),
                                     third.getReference(),
                                     "CIRCULAR_FLOW_3_HOP"
                             )
@@ -208,22 +265,33 @@ public class AmlRuleEngine {
     }
 
     private List<DetectionCandidate> detectStructuring(
-            List<TransactionEntity> transactions
+            List<TransactionEntity> transactions,
+            RuleSetting setting
     ) {
         Map<String, List<TransactionEntity>> grouped =
                 new HashMap<>();
 
-        for (TransactionEntity transaction : transactions) {
-
-            if (transaction
-                    .getAmount()
-                    .compareTo(STRUCTURING_MIN) < 0) {
+        for (
+                TransactionEntity transaction
+                        : transactions
+        ) {
+            if (
+                    transaction
+                            .getAmount()
+                            .compareTo(
+                                    setting.primaryAmountThreshold()
+                            ) < 0
+            ) {
                 continue;
             }
 
-            if (transaction
-                    .getAmount()
-                    .compareTo(STRUCTURING_MAX) >= 0) {
+            if (
+                    transaction
+                            .getAmount()
+                            .compareTo(
+                                    setting.secondaryAmountThreshold()
+                            ) >= 0
+            ) {
                 continue;
             }
 
@@ -233,13 +301,14 @@ public class AmlRuleEngine {
                             .getAccountNumber()
                             + "|"
                             + transaction
-                                    .getDestinationAccount()
-                                    .getAccountNumber();
+                            .getDestinationAccount()
+                            .getAccountNumber();
 
             grouped
                     .computeIfAbsent(
                             key,
-                            ignored -> new ArrayList<>()
+                            ignored ->
+                                    new ArrayList<>()
                     )
                     .add(transaction);
         }
@@ -248,8 +317,11 @@ public class AmlRuleEngine {
                 new ArrayList<>();
 
         for (
-                Map.Entry<String, List<TransactionEntity>>
-                        entry : grouped.entrySet()
+                Map.Entry<
+                        String,
+                        List<TransactionEntity>
+                        > entry
+                        : grouped.entrySet()
         ) {
             List<TransactionEntity> group =
                     entry
@@ -257,35 +329,56 @@ public class AmlRuleEngine {
                             .stream()
                             .sorted(
                                     Comparator.comparing(
-                                            TransactionEntity::getOccurredAt
+                                            TransactionEntity
+                                                    ::getOccurredAt
                                     )
                             )
                             .toList();
 
-            if (group.size() < 3) {
+            if (
+                    group.size()
+                            < setting.minimumOccurrences()
+            ) {
                 continue;
             }
 
             Duration span =
                     Duration.between(
-                            group.getFirst().getOccurredAt(),
-                            group.getLast().getOccurredAt()
+                            group
+                                    .getFirst()
+                                    .getOccurredAt(),
+                            group
+                                    .getLast()
+                                    .getOccurredAt()
                     );
 
-            if (span.compareTo(Duration.ofHours(2)) > 0) {
+            if (
+                    span.compareTo(
+                            Duration.ofMinutes(
+                                    setting.windowMinutes()
+                            )
+                    ) > 0
+            ) {
                 continue;
             }
 
             BigDecimal total =
                     group
                             .stream()
-                            .map(TransactionEntity::getAmount)
+                            .map(
+                                    TransactionEntity
+                                            ::getAmount
+                            )
                             .reduce(
                                     BigDecimal.ZERO,
                                     BigDecimal::add
                             );
 
-            if (total.compareTo(STRUCTURING_TOTAL) < 0) {
+            if (
+                    total.compareTo(
+                            setting.aggregateAmountThreshold()
+                    ) < 0
+            ) {
                 continue;
             }
 
@@ -302,24 +395,23 @@ public class AmlRuleEngine {
                             .getDestinationAccount()
                             .getAccountNumber();
 
-            String detectionKey =
-                    sourceAccount
-                            + "|"
-                            + destinationAccount;
-
             results.add(
                     new DetectionCandidate(
                             "AUTO-STRUCT-"
-                                    + stableToken(detectionKey),
-                            AlertEntity.AlertType.STRUCTURING,
-                            AlertEntity.AlertSeverity.HIGH,
-                            88,
+                                    + stableToken(
+                                            sourceAccount
+                                                    + "|"
+                                                    + destinationAccount
+                                    ),
+                            AlertEntity.AlertType
+                                    .STRUCTURING,
+                            setting.severity(),
+                            setting.riskScore(),
                             "Possible structuring pattern detected",
                             group.size()
                                     + " transfers totaling "
                                     + total
-                                    + " were sent between the same "
-                                    + "accounts within "
+                                    + " occurred within "
                                     + span.toMinutes()
                                     + " minutes.",
                             sourceAccount,
@@ -333,20 +425,29 @@ public class AmlRuleEngine {
     }
 
     private List<DetectionCandidate> detectLargeCrossBorder(
-            List<TransactionEntity> transactions
+            List<TransactionEntity> transactions,
+            RuleSetting setting
     ) {
         List<DetectionCandidate> results =
                 new ArrayList<>();
 
-        for (TransactionEntity transaction : transactions) {
-
-            if (transaction
-                    .getAmount()
-                    .compareTo(LARGE_CROSS_BORDER) < 0) {
+        for (
+                TransactionEntity transaction
+                        : transactions
+        ) {
+            if (
+                    transaction
+                            .getAmount()
+                            .compareTo(
+                                    setting.primaryAmountThreshold()
+                            ) < 0
+            ) {
                 continue;
             }
 
-            if (!isCrossBorder(transaction)) {
+            if (!isCrossBorder(
+                    transaction
+            )) {
                 continue;
             }
 
@@ -354,19 +455,19 @@ public class AmlRuleEngine {
                     new DetectionCandidate(
                             "AUTO-XB-"
                                     + stableToken(
-                                            transaction.getReference()
+                                            transaction
+                                                    .getReference()
                                     ),
-                            AlertEntity.AlertType.LARGE_CROSS_BORDER,
-                            AlertEntity.AlertSeverity.HIGH,
-                            84,
+                            AlertEntity.AlertType
+                                    .LARGE_CROSS_BORDER,
+                            setting.severity(),
+                            setting.riskScore(),
                             "Large cross-border transfer detected",
                             "A "
                                     + transaction.getAmount()
                                     + " "
                                     + transaction.getCurrency()
-                                    + " transfer crossed customer "
-                                    + "jurisdictions and exceeded the "
-                                    + "large-transfer monitoring threshold.",
+                                    + " transfer crossed customer jurisdictions.",
                             transaction
                                     .getSourceAccount()
                                     .getAccountNumber(),
@@ -379,21 +480,31 @@ public class AmlRuleEngine {
         return results;
     }
 
-    private List<DetectionCandidate> detectHighRiskCounterparties(
-            List<TransactionEntity> transactions
+    private List<DetectionCandidate>
+    detectHighRiskCounterparties(
+            List<TransactionEntity> transactions,
+            RuleSetting setting
     ) {
         List<DetectionCandidate> results =
                 new ArrayList<>();
 
-        for (TransactionEntity transaction : transactions) {
-
-            if (transaction
-                    .getAmount()
-                    .compareTo(HIGH_RISK_EXPOSURE) < 0) {
+        for (
+                TransactionEntity transaction
+                        : transactions
+        ) {
+            if (
+                    transaction
+                            .getAmount()
+                            .compareTo(
+                                    setting.primaryAmountThreshold()
+                            ) < 0
+            ) {
                 continue;
             }
 
-            if (!isCrossBorder(transaction)) {
+            if (!isCrossBorder(
+                    transaction
+            )) {
                 continue;
             }
 
@@ -407,10 +518,12 @@ public class AmlRuleEngine {
                             .getDestinationAccount()
                             .getCustomer();
 
-            if (sourceCustomer.getRiskTier()
-                    != CustomerEntity.RiskTier.HIGH
-                    && destinationCustomer.getRiskTier()
-                    != CustomerEntity.RiskTier.HIGH) {
+            if (
+                    sourceCustomer.getRiskTier()
+                            != CustomerEntity.RiskTier.HIGH
+                            && destinationCustomer.getRiskTier()
+                            != CustomerEntity.RiskTier.HIGH
+            ) {
                 continue;
             }
 
@@ -418,15 +531,16 @@ public class AmlRuleEngine {
                     new DetectionCandidate(
                             "AUTO-HRCP-"
                                     + stableToken(
-                                            transaction.getReference()
+                                            transaction
+                                                    .getReference()
                                     ),
-                            AlertEntity.AlertType.HIGH_RISK_COUNTERPARTY,
-                            AlertEntity.AlertSeverity.HIGH,
-                            79,
+                            AlertEntity.AlertType
+                                    .HIGH_RISK_COUNTERPARTY,
+                            setting.severity(),
+                            setting.riskScore(),
                             "High-risk counterparty exposure",
                             "A material cross-border transfer involved "
-                                    + "at least one customer relationship "
-                                    + "classified as high risk.",
+                                    + "at least one high-risk customer relationship.",
                             transaction
                                     .getSourceAccount()
                                     .getAccountNumber(),
@@ -439,14 +553,18 @@ public class AmlRuleEngine {
         return results;
     }
 
-    private List<DetectionCandidate> detectVelocityAnomalies(
-            List<TransactionEntity> transactions
+    private List<DetectionCandidate>
+    detectVelocityAnomalies(
+            List<TransactionEntity> transactions,
+            RuleSetting setting
     ) {
         Map<String, List<TransactionEntity>> byAccount =
                 new HashMap<>();
 
-        for (TransactionEntity transaction : transactions) {
-
+        for (
+                TransactionEntity transaction
+                        : transactions
+        ) {
             String source =
                     transaction
                             .getSourceAccount()
@@ -460,15 +578,19 @@ public class AmlRuleEngine {
             byAccount
                     .computeIfAbsent(
                             source,
-                            ignored -> new ArrayList<>()
+                            ignored ->
+                                    new ArrayList<>()
                     )
                     .add(transaction);
 
-            if (!source.equals(destination)) {
+            if (!source.equals(
+                    destination
+            )) {
                 byAccount
                         .computeIfAbsent(
                                 destination,
-                                ignored -> new ArrayList<>()
+                                ignored ->
+                                        new ArrayList<>()
                         )
                         .add(transaction);
             }
@@ -478,8 +600,11 @@ public class AmlRuleEngine {
                 new ArrayList<>();
 
         for (
-                Map.Entry<String, List<TransactionEntity>>
-                        entry : byAccount.entrySet()
+                Map.Entry<
+                        String,
+                        List<TransactionEntity>
+                        > entry
+                        : byAccount.entrySet()
         ) {
             List<TransactionEntity> activity =
                     entry
@@ -487,20 +612,34 @@ public class AmlRuleEngine {
                             .stream()
                             .sorted(
                                     Comparator.comparing(
-                                            TransactionEntity::getOccurredAt
+                                            TransactionEntity
+                                                    ::getOccurredAt
                                     )
                             )
                             .toList();
 
-            boolean detected = false;
+            boolean detected =
+                    false;
+
+            int minimumOccurrences =
+                    Math.max(
+                            2,
+                            setting.minimumOccurrences()
+                    );
 
             for (
                     int start = 0;
-                    start < activity.size() && !detected;
+                    start < activity.size()
+                            && !detected;
                     start++
             ) {
+                int minimumEnd =
+                        start
+                                + minimumOccurrences
+                                - 1;
+
                 for (
-                        int end = start + 3;
+                        int end = minimumEnd;
                         end < activity.size();
                         end++
                 ) {
@@ -514,10 +653,13 @@ public class AmlRuleEngine {
                                             .getOccurredAt()
                             );
 
-                    if (window.compareTo(
-                            Duration.ofHours(3)
-                    ) <= 0) {
-
+                    if (
+                            window.compareTo(
+                                    Duration.ofMinutes(
+                                            setting.windowMinutes()
+                                    )
+                            ) <= 0
+                    ) {
                         TransactionEntity evidence =
                                 activity.get(end);
 
@@ -529,12 +671,14 @@ public class AmlRuleEngine {
                                                 ),
                                         AlertEntity.AlertType
                                                 .VELOCITY_ANOMALY,
-                                        AlertEntity.AlertSeverity.MEDIUM,
-                                        72,
+                                        setting.severity(),
+                                        setting.riskScore(),
                                         "Transaction velocity anomaly",
-                                        "At least four account interactions "
-                                                + "occurred inside a three-hour "
-                                                + "monitoring window.",
+                                        "At least "
+                                                + minimumOccurrences
+                                                + " account interactions occurred inside "
+                                                + setting.windowMinutes()
+                                                + " minutes.",
                                         entry.getKey(),
                                         evidence.getReference(),
                                         "TRANSACTION_VELOCITY"
@@ -566,17 +710,28 @@ public class AmlRuleEngine {
                         .getCustomer()
                         .getCountryCode();
 
-        return !sourceCountry.equals(destinationCountry);
+        return !sourceCountry.equals(
+                destinationCountry
+        );
     }
 
-    private String stableToken(String value) {
+    private String stableToken(
+            String value
+    ) {
         return UUID
                 .nameUUIDFromBytes(
-                        value.getBytes(StandardCharsets.UTF_8)
+                        value.getBytes(
+                                StandardCharsets.UTF_8
+                        )
                 )
                 .toString()
-                .substring(0, 8)
-                .toUpperCase(Locale.ROOT);
+                .substring(
+                        0,
+                        8
+                )
+                .toUpperCase(
+                        Locale.ROOT
+                );
     }
 
     public record DetectionCandidate(
@@ -590,5 +745,122 @@ public class AmlRuleEngine {
             String transactionReference,
             String ruleId
     ) {
+    }
+
+    public record RuleSetting(
+            boolean enabled,
+            AlertEntity.AlertSeverity severity,
+            int riskScore,
+            BigDecimal primaryAmountThreshold,
+            BigDecimal secondaryAmountThreshold,
+            BigDecimal aggregateAmountThreshold,
+            int minimumOccurrences,
+            int windowMinutes
+    ) {
+
+        public RuleSetting withEnabled(
+                boolean enabled
+        ) {
+            return new RuleSetting(
+                    enabled,
+                    severity,
+                    riskScore,
+                    primaryAmountThreshold,
+                    secondaryAmountThreshold,
+                    aggregateAmountThreshold,
+                    minimumOccurrences,
+                    windowMinutes
+            );
+        }
+    }
+
+    public record RuleConfiguration(
+            RuleSetting circularFlow,
+            RuleSetting structuring,
+            RuleSetting largeCrossBorder,
+            RuleSetting highRiskCounterparty,
+            RuleSetting velocityAnomaly
+    ) {
+
+        public static RuleConfiguration defaults() {
+            return new RuleConfiguration(
+                    new RuleSetting(
+                            true,
+                            AlertEntity.AlertSeverity.CRITICAL,
+                            96,
+                            BigDecimal.ZERO,
+                            BigDecimal.ZERO,
+                            BigDecimal.ZERO,
+                            3,
+                            90
+                    ),
+                    new RuleSetting(
+                            true,
+                            AlertEntity.AlertSeverity.HIGH,
+                            88,
+                            new BigDecimal("4000"),
+                            new BigDecimal("10000"),
+                            new BigDecimal("10000"),
+                            3,
+                            120
+                    ),
+                    new RuleSetting(
+                            true,
+                            AlertEntity.AlertSeverity.HIGH,
+                            84,
+                            new BigDecimal("25000"),
+                            BigDecimal.ZERO,
+                            BigDecimal.ZERO,
+                            1,
+                            0
+                    ),
+                    new RuleSetting(
+                            true,
+                            AlertEntity.AlertSeverity.HIGH,
+                            79,
+                            new BigDecimal("10000"),
+                            BigDecimal.ZERO,
+                            BigDecimal.ZERO,
+                            1,
+                            0
+                    ),
+                    new RuleSetting(
+                            true,
+                            AlertEntity.AlertSeverity.MEDIUM,
+                            72,
+                            BigDecimal.ZERO,
+                            BigDecimal.ZERO,
+                            BigDecimal.ZERO,
+                            4,
+                            180
+                    )
+            );
+        }
+
+        public int enabledCount() {
+            int count = 0;
+
+            if (circularFlow.enabled()) {
+                count++;
+            }
+
+            if (structuring.enabled()) {
+                count++;
+            }
+
+            if (largeCrossBorder.enabled()) {
+                count++;
+            }
+
+            if (highRiskCounterparty.enabled()) {
+                count++;
+            }
+
+            if (velocityAnomaly.enabled()) {
+                count++;
+            }
+
+            return count;
+        }
     }
 }

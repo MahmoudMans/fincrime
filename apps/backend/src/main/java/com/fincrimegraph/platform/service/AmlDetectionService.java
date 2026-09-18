@@ -24,6 +24,7 @@ public class AmlDetectionService {
     private final AccountRepository accountRepository;
     private final AlertRepository alertRepository;
     private final DetectionRunRepository detectionRunRepository;
+    private DetectionRuleService detectionRuleService;
 
     public AmlDetectionService(
             AmlRuleEngine ruleEngine,
@@ -38,6 +39,15 @@ public class AmlDetectionService {
         this.alertRepository = alertRepository;
         this.detectionRunRepository = detectionRunRepository;
     }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setDetectionRuleService(
+            DetectionRuleService detectionRuleService
+    ) {
+        this.detectionRuleService =
+                detectionRuleService;
+    }
+
 
     @Transactional(transactionManager = "transactionManager")
     public DetectionRunView runDetection() {
@@ -55,8 +65,17 @@ public class AmlDetectionService {
         List<TransactionEntity> transactions =
                 transactionRepository.findAll();
 
+        AmlRuleEngine.RuleConfiguration configuration =
+                detectionRuleService == null
+                        ? AmlRuleEngine.RuleConfiguration.defaults()
+                        : detectionRuleService
+                        .runtimeConfiguration();
+
         List<AmlRuleEngine.DetectionCandidate> candidates =
-                ruleEngine.evaluate(transactions);
+                ruleEngine.evaluate(
+                        transactions,
+                        configuration
+                );
 
         int created = 0;
         int existing = 0;
@@ -121,7 +140,7 @@ public class AmlDetectionService {
 
         run.complete(
                 Instant.now(),
-                AmlRuleEngine.RULE_COUNT,
+                configuration.enabledCount(),
                 candidates.size(),
                 created,
                 existing
