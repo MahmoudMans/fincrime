@@ -5149,3 +5149,578 @@ tbody tr:hover {
     justify-content: center;
   }
 }
+
+/* ==========================================================================
+   STEP 10 — UNIFIED CUSTOMER RISK ENGINE
+   ========================================================================== */
+
+.customer-risk-panel {
+  margin-top: 16px;
+}
+
+.customer-risk-heading {
+  align-items: center;
+}
+
+.customer-risk-error {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  margin: 12px 16px 0;
+  padding: 9px 10px;
+
+  border: 1px solid
+    rgba(240, 92, 105, 0.25);
+
+  border-radius: 7px;
+
+  color: #ff8a94;
+  background: var(--red-soft);
+
+  font-size: 8px;
+}
+
+.risk-band-summary {
+  display: grid;
+  grid-template-columns:
+    repeat(5, minmax(0, 1fr));
+
+  margin: 14px 16px 0;
+
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+
+  overflow: hidden;
+}
+
+.risk-band-metric {
+  position: relative;
+
+  min-height: 73px;
+
+  padding: 10px;
+
+  border-right:
+    1px solid var(--border-soft);
+}
+
+.risk-band-metric:last-child {
+  border-right: 0;
+}
+
+.risk-band-metric > div {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+
+  color: #507aa5;
+}
+
+.risk-band-metric span {
+  display: block;
+
+  color: var(--text-soft);
+
+  font-size: 7px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.risk-band-metric strong {
+  display: block;
+
+  margin-top: 8px;
+
+  color: #dae7f3;
+
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.customer-risk-layout {
+  display: grid;
+  grid-template-columns:
+    330px minmax(0, 1fr);
+
+  min-height: 560px;
+
+  margin-top: 12px;
+
+  border-top:
+    1px solid var(--border-soft);
+}
+
+.customer-risk-list {
+  max-height: 600px;
+
+  overflow: auto;
+
+  border-right:
+    1px solid var(--border-soft);
+}
+
+.customer-risk-row {
+  width: 100%;
+  min-height: 73px;
+
+  display: grid;
+  grid-template-columns:
+    47px minmax(0, 1fr) auto;
+
+  align-items: center;
+  gap: 9px;
+
+  padding: 10px 11px;
+
+  border: 0;
+  border-bottom:
+    1px solid var(--border-soft);
+
+  background: transparent;
+
+  cursor: pointer;
+  text-align: left;
+}
+
+.customer-risk-row:hover {
+  background:
+    rgba(255, 255, 255, 0.018);
+}
+
+.customer-risk-row.selected {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(52, 127, 245, 0.11),
+      transparent
+    );
+
+  box-shadow:
+    inset 2px 0
+    var(--blue);
+}
+
+.unified-risk-score {
+  width: 44px;
+  height: 44px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 9px;
+}
+
+.unified-risk-score strong {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.unified-risk-score span {
+  margin-top: 2px;
+
+  font-size: 5px;
+  opacity: 0.72;
+}
+
+.unified-risk-score.large {
+  width: 72px;
+  height: 67px;
+}
+
+.unified-risk-score.large strong {
+  font-size: 22px;
+}
+
+.unified-risk-score.large span {
+  font-size: 7px;
+}
+
+.unified-risk-critical {
+  color: #ff7883;
+  background: var(--red-soft);
+}
+
+.unified-risk-high {
+  color: #efb565;
+
+  background:
+    rgba(239, 181, 101, 0.09);
+}
+
+.unified-risk-medium {
+  color: #79aee4;
+  background: var(--blue-soft);
+}
+
+.unified-risk-low {
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.customer-risk-row-copy {
+  min-width: 0;
+}
+
+.customer-risk-row-copy strong {
+  display: block;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  color: #d6e3ef;
+
+  font-size: 9px;
+}
+
+.customer-risk-row-copy span {
+  display: block;
+
+  margin-top: 4px;
+
+  color: var(--text-soft);
+
+  font-size: 7px;
+}
+
+.customer-risk-row-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.customer-risk-row-meta strong {
+  font-size: 7px;
+}
+
+.customer-risk-row-meta span {
+  color: var(--text-soft);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size: 6px;
+}
+
+.customer-risk-detail {
+  min-width: 0;
+
+  padding: 17px;
+}
+
+.customer-risk-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+
+  padding-bottom: 14px;
+
+  border-bottom:
+    1px solid var(--border-soft);
+}
+
+.customer-risk-detail-head h3 {
+  margin: 5px 0 3px;
+
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.customer-risk-detail-head p {
+  margin: 0;
+
+  color: var(--text-muted);
+
+  font-size: 8px;
+}
+
+.customer-risk-meta-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+
+  gap: 8px;
+
+  margin-top: 12px;
+}
+
+.customer-risk-detail-cell {
+  min-width: 0;
+
+  padding: 9px;
+
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+
+  background:
+    rgba(255, 255, 255, 0.013);
+}
+
+.customer-risk-detail-cell span {
+  display: block;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.customer-risk-detail-cell strong {
+  display: block;
+
+  margin-top: 4px;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  color: #d0deeb;
+
+  font-size: 8px;
+}
+
+.risk-factor-heading {
+  min-height: 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-top: 13px;
+
+  border: 1px solid var(--border-soft);
+  border-radius:
+    8px 8px 0 0;
+
+  padding: 0 11px;
+}
+
+.risk-factor-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  color: #75a5da;
+}
+
+.risk-factor-heading strong {
+  color: #d2dfec;
+
+  font-size: 9px;
+}
+
+.risk-factor-heading > span {
+  color: var(--text-soft);
+
+  font-size: 7px;
+}
+
+.risk-factor-list {
+  border: 1px solid var(--border-soft);
+  border-top: 0;
+
+  border-radius:
+    0 0 8px 8px;
+
+  overflow: hidden;
+}
+
+.risk-factor-row {
+  display: grid;
+  grid-template-columns:
+    34px minmax(0, 1fr) 48px;
+
+  align-items: flex-start;
+  gap: 9px;
+
+  padding: 10px 11px;
+
+  border-bottom:
+    1px solid var(--border-soft);
+}
+
+.risk-factor-row:last-child {
+  border-bottom: 0;
+}
+
+.risk-factor-icon {
+  width: 30px;
+  height: 30px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 7px;
+
+  color: #73a7de;
+  background: var(--blue-soft);
+}
+
+.risk-factor-copy {
+  min-width: 0;
+}
+
+.risk-factor-copy > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  flex-wrap: wrap;
+}
+
+.risk-factor-copy strong {
+  color: #d2dfeb;
+
+  font-size: 8px;
+}
+
+.risk-factor-copy span {
+  color: var(--text-soft);
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+
+  font-size: 6px;
+}
+
+.risk-factor-copy p {
+  margin: 5px 0 0;
+
+  color: var(--text-muted);
+
+  font-size: 7px;
+  line-height: 1.5;
+}
+
+.risk-factor-contribution {
+  min-width: 42px;
+
+  padding: 7px 5px;
+
+  border-radius: 6px;
+
+  color: var(--text-soft);
+
+  background:
+    rgba(255, 255, 255, 0.025);
+
+  font-size: 10px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.risk-factor-contribution.active {
+  color: #f0b467;
+
+  background:
+    rgba(240, 180, 103, 0.08);
+}
+
+.risk-model-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+
+  margin-top: 11px;
+  padding: 9px 10px;
+
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+
+  color: #71a6dd;
+  background: var(--blue-soft);
+}
+
+.risk-model-note span {
+  color: var(--text-muted);
+
+  font-size: 7px;
+  line-height: 1.5;
+}
+
+.customer-risk-empty {
+  min-height: 280px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap: 6px;
+
+  color: var(--text-soft);
+
+  text-align: center;
+}
+
+.customer-risk-empty strong {
+  color: var(--text-muted);
+
+  font-size: 10px;
+}
+
+.customer-risk-empty span {
+  max-width: 270px;
+
+  font-size: 7px;
+  line-height: 1.5;
+}
+
+@media (max-width: 980px) {
+  .customer-risk-layout {
+    grid-template-columns:
+      285px minmax(0, 1fr);
+  }
+
+  .customer-risk-meta-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .customer-risk-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .customer-risk-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-risk-list {
+    max-height: 300px;
+
+    border-right: 0;
+    border-bottom:
+      1px solid var(--border-soft);
+  }
+}
+
+@media (max-width: 650px) {
+  .risk-band-summary {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .risk-band-metric {
+    border-bottom:
+      1px solid var(--border-soft);
+  }
+
+  .customer-risk-meta-grid {
+    grid-template-columns: 1fr;
+  }
+}

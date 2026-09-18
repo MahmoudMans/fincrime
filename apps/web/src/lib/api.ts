@@ -1034,3 +1034,87 @@ export function reviewWatchlistHit(
     }
   );
 }
+
+export interface CustomerRiskAssessment {
+  id: string;
+  batchId: string;
+  customerId: string;
+  customerName: string;
+  countryCode: string;
+  customerRiskTier: string;
+  score: number;
+  riskBand: string;
+  modelVersion: string;
+  generatedBy: string;
+  generatedAt: string;
+}
+
+export interface CustomerRiskFactor {
+  id: string;
+  factorKey: string;
+  label: string;
+  rawValue: string;
+  contribution: number;
+  explanation: string;
+}
+
+export interface CustomerRiskBatch {
+  batchId: string;
+  modelVersion: string;
+  generatedAt: string;
+  customerCount: number;
+  lowCount: number;
+  mediumCount: number;
+  highCount: number;
+  criticalCount: number;
+  assessments: CustomerRiskAssessment[];
+}
+
+export function fetchCustomerRiskAssessments(
+  signal?: AbortSignal
+): Promise<CustomerRiskAssessment[]> {
+  return request<CustomerRiskAssessment[]>(
+    "/api/v1/customer-risk/assessments",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchCustomerRiskFactors(
+  assessmentId: string,
+  signal?: AbortSignal
+): Promise<CustomerRiskFactor[]> {
+  return request<CustomerRiskFactor[]>(
+    `/api/v1/customer-risk/assessments/${encodeURIComponent(
+      assessmentId
+    )}/factors`,
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchCustomerRiskHistory(
+  customerId: string,
+  signal?: AbortSignal
+): Promise<CustomerRiskAssessment[]> {
+  return request<CustomerRiskAssessment[]>(
+    `/api/v1/customer-risk/customers/${encodeURIComponent(
+      customerId
+    )}/history`,
+    {
+      signal,
+    }
+  );
+}
+
+export function recalculateCustomerRisk():
+Promise<CustomerRiskBatch> {
+  return request<CustomerRiskBatch>(
+    "/api/v1/customer-risk/recalculate",
+    {
+      method: "POST",
+    }
+  );
+}
