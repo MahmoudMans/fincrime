@@ -1,6 +1,14 @@
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
+let apiAccessToken: string | null = null;
+
+export function setApiAccessToken(
+  token: string | null
+) {
+  apiAccessToken = token;
+}
+
 export interface DashboardSummary {
   customers: number;
   accounts: number;
@@ -103,6 +111,12 @@ async function request<T>(
     ...options,
     headers: {
       Accept: "application/json",
+      ...(apiAccessToken
+        ? {
+            Authorization:
+              `Bearer ${apiAccessToken}`,
+          }
+        : {}),
       ...(options?.headers ?? {}),
     },
   });
@@ -642,6 +656,90 @@ export function resolveCaseWorkspace(
     })}`,
     {
       method: "POST",
+    }
+  );
+}
+
+export interface AuthLoginResponse {
+  accessToken: string;
+  tokenType: string;
+  expiresAt: string;
+  username: string;
+  displayName: string;
+  roles: string[];
+}
+
+export interface AuthUser {
+  username: string;
+  displayName: string;
+  roles: string[];
+  expiresAt: string;
+}
+
+export interface SecurityAuditEvent {
+  id: string;
+  username: string;
+  action: string;
+  resourceType: string;
+  resourceId: string | null;
+  outcome: string;
+  detail: string;
+  occurredAt: string;
+}
+
+export async function authenticateUser(
+  username: string,
+  password: string
+): Promise<AuthLoginResponse> {
+  const body =
+    new URLSearchParams({
+      username,
+      password,
+    });
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/auth/login`,
+    {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        "Content-Type":
+          "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      response.status === 401
+        ? "Invalid username or password."
+        : `Authentication failed: ${response.status}`
+    );
+  }
+
+  return response.json() as Promise<AuthLoginResponse>;
+}
+
+export function fetchCurrentUser(
+  signal?: AbortSignal
+): Promise<AuthUser> {
+  return request<AuthUser>(
+    "/api/v1/auth/me",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchSecurityAudit(
+  signal?: AbortSignal
+): Promise<SecurityAuditEvent[]> {
+  return request<SecurityAuditEvent[]>(
+    "/api/v1/security/audit",
+    {
+      signal,
     }
   );
 }

@@ -31,6 +31,8 @@ import {
   type InvestigationCase,
 } from "@/lib/api";
 
+import { useAuth } from "./auth-context";
+
 interface CaseWorkspaceProps {
   cases: InvestigationCase[];
 }
@@ -861,6 +863,16 @@ function AssignmentSection({
     (value: string) => void;
   onAssign: () => Promise<void>;
 }) {
+  const {
+    hasAnyRole,
+  } = useAuth();
+
+  const canManageCase =
+    hasAnyRole(
+      "SENIOR_ANALYST",
+      "ADMIN"
+    );
+
   return (
     <section className="case-side-block">
       <div className="case-side-heading">
@@ -891,6 +903,7 @@ function AssignmentSection({
         type="button"
         className="secondary-button case-wide-button"
         disabled={
+          !canManageCase ||
           !assignee.trim() ||
           action !== null
         }
@@ -923,6 +936,16 @@ function ResolutionSection({
     (value: string) => void;
   onResolve: () => Promise<void>;
 }) {
+  const {
+    hasAnyRole,
+  } = useAuth();
+
+  const canResolveCase =
+    hasAnyRole(
+      "SENIOR_ANALYST",
+      "ADMIN"
+    );
+
   const closed =
     workspace.status === "CLOSED";
 
@@ -992,6 +1015,7 @@ function ResolutionSection({
             type="button"
             className="secondary-button case-wide-button"
             disabled={
+              !canResolveCase ||
               !resolution.trim() ||
               action !== null
             }

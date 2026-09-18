@@ -1,5 +1,7 @@
-import { DashboardShell } from "@/components/dashboard-shell";
+import {
+  AuthShell,
+} from "@/components/auth-shell";
 
 export default function HomePage() {
-  return <DashboardShell />;
+  return <AuthShell />;
 }

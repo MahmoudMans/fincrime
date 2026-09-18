@@ -12,6 +12,7 @@ import {
   GitBranch,
   Landmark,
   LayoutDashboard,
+  LogOut,
   Network,
   Play,
   Radar,
@@ -42,6 +43,7 @@ import {
   type TransactionView,
 } from "@/lib/api";
 
+import { useAuth } from "./auth-context";
 import { GraphExplorer } from "./graph-explorer";
 import { GraphInvestigationWorkbench } from "./graph-investigation-workbench";
 import { IntelligenceExplorer } from "./intelligence-explorer";
@@ -76,6 +78,18 @@ const navItems = [
 ];
 
 export function DashboardShell() {
+  const {
+    session,
+    logout,
+    hasAnyRole,
+  } = useAuth();
+
+  const canRunDetection =
+    hasAnyRole(
+      "SENIOR_ANALYST",
+      "ADMIN"
+    );
+
   const [overview, setOverview] =
     useState<DashboardOverview | null>(null);
 
@@ -313,8 +327,16 @@ export function DashboardShell() {
             <div className="avatar">AM</div>
 
             <div>
-              <strong>AML Analyst</strong>
-              <span>Investigation workspace</span>
+              <strong>
+                {session.displayName}
+              </strong>
+
+              <span>
+                {humanize(
+                  session.roles[0] ??
+                    "AML_ANALYST"
+                )}
+              </span>
             </div>
           </div>
         </div>
@@ -336,6 +358,29 @@ export function DashboardShell() {
               <span />
               Synthetic data
             </div>
+
+            <div className="security-session-pill">
+              <strong>
+                {session.displayName}
+              </strong>
+
+              <span>
+                {humanize(
+                  session.roles[0] ??
+                    "AML_ANALYST"
+                )}
+              </span>
+            </div>
+
+            <button
+              className="icon-button"
+              type="button"
+              aria-label="Log out"
+              title="Log out"
+              onClick={logout}
+            >
+              <LogOut size={17} />
+            </button>
 
             <button
               className="icon-button notification-button"
@@ -387,7 +432,15 @@ export function DashboardShell() {
               <button
                 className="primary-button"
                 type="button"
-                disabled={detecting}
+                disabled={
+                  detecting ||
+                  !canRunDetection
+                }
+                title={
+                  canRunDetection
+                    ? "Run AML detection"
+                    : "Senior Analyst or Administrator required"
+                }
                 onClick={() =>
                   void handleRunDetection()
                 }

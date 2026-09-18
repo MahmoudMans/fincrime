@@ -42,3 +42,10 @@ management:
 app:
   cors:
     allowed-origin: ${FRONTEND_ORIGIN:http://localhost:3000}
+
+  security:
+    jwt-secret: ${JWT_SECRET:fincrime-graph-local-development-jwt-secret-2026-change-me-before-production}
+    token-hours: ${JWT_TOKEN_HOURS:8}
+    analyst-password: ${FINCRIME_ANALYST_PASSWORD:FinCrime!Analyst2026}
+    senior-password: ${FINCRIME_SENIOR_PASSWORD:FinCrime!Senior2026}
+    admin-password: ${FINCRIME_ADMIN_PASSWORD:FinCrime!Admin2026}
