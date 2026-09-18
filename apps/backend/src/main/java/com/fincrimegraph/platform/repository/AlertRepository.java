@@ -11,6 +11,8 @@ public interface AlertRepository extends JpaRepository<AlertEntity, UUID> {
 
     long countByStatusNot(AlertEntity.AlertStatus status);
 
+    boolean existsByAlertCode(String alertCode);
+
     @EntityGraph(attributePaths = {
             "primaryAccount",
             "primaryAccount.customer",

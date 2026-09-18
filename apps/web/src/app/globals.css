@@ -1264,3 +1264,330 @@ tbody tr:hover {
     padding-bottom: 10px;
   }
 }
+
+/* ==========================================================================
+   STEP 2 — AML detection + investigation workflow
+   ========================================================================== */
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled,
+.mini-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.detection-pill {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  padding: 0 11px;
+
+  border: 1px solid var(--border);
+  border-radius: 9px;
+
+  color: var(--text-muted);
+  background: var(--surface);
+}
+
+.detection-pill svg {
+  color: var(--green);
+}
+
+.detection-pill span {
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.detection-pill small {
+  padding-left: 7px;
+  border-left: 1px solid var(--border);
+  color: var(--text-soft);
+  font-size: 8px;
+}
+
+.action-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  margin: -12px 0 18px;
+  padding: 10px 12px;
+
+  border: 1px solid rgba(240, 92, 105, 0.25);
+  border-radius: 9px;
+
+  color: #ff8a94;
+  background: var(--red-soft);
+
+  font-size: 10px;
+}
+
+.alert-actions {
+  margin-top: 9px;
+}
+
+.mini-button {
+  min-height: 28px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 0 9px;
+
+  border: 1px solid var(--border);
+  border-radius: 6px;
+
+  color: #9bb4d1;
+  background: rgba(255, 255, 255, 0.025);
+
+  cursor: pointer;
+
+  font-size: 8px;
+  font-weight: 650;
+}
+
+.mini-button:hover:not(:disabled) {
+  color: var(--text);
+  border-color: #395b7c;
+  background: var(--surface-2);
+}
+
+.cases-panel {
+  margin-top: 16px;
+}
+
+.detection-run-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 7px 10px;
+
+  border: 1px solid var(--border);
+  border-radius: 8px;
+
+  background: rgba(40, 200, 183, 0.055);
+}
+
+.detection-run-summary svg {
+  color: var(--green);
+}
+
+.detection-run-summary strong {
+  display: inline;
+  font-size: 11px;
+}
+
+.detection-run-summary span {
+  margin-left: 4px;
+  color: var(--text-soft);
+  font-size: 8px;
+}
+
+.case-empty {
+  min-height: 145px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap: 7px;
+
+  color: var(--text-soft);
+  text-align: center;
+}
+
+.case-empty strong {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.case-empty span {
+  font-size: 9px;
+}
+
+.case-list {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+}
+
+.case-item {
+  min-height: 106px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+
+  padding: 16px 18px;
+
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.case-item:nth-child(odd) {
+  border-right: 1px solid var(--border-soft);
+}
+
+.case-main {
+  min-width: 0;
+}
+
+.case-title-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.case-title-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  font-size: 10px;
+}
+
+.case-priority {
+  flex: 0 0 auto;
+
+  padding: 4px 6px;
+
+  border-radius: 5px;
+
+  font-size: 7px;
+  font-weight: 800;
+}
+
+.priority-critical {
+  color: #ff818b;
+  background: var(--red-soft);
+}
+
+.priority-high {
+  color: #f7c36f;
+  background: var(--yellow-soft);
+}
+
+.priority-medium {
+  color: #78aaff;
+  background: var(--blue-soft);
+}
+
+.priority-low {
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.case-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+
+  margin-top: 9px;
+
+  color: var(--text-soft);
+  font-size: 8px;
+}
+
+.case-actions {
+  flex: 0 0 auto;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 9px;
+}
+
+.case-status {
+  padding: 4px 7px;
+
+  border-radius: 5px;
+
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.case-status-open {
+  color: #77a9f4;
+  background: var(--blue-soft);
+}
+
+.case-status-in_review {
+  color: var(--yellow);
+  background: var(--yellow-soft);
+}
+
+.case-status-closed {
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.secondary-button {
+  min-height: 30px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+
+  padding: 0 9px;
+
+  border: 1px solid var(--border);
+  border-radius: 7px;
+
+  color: #a9bfd7;
+  background: var(--surface-2);
+
+  cursor: pointer;
+
+  font-size: 8px;
+  font-weight: 650;
+}
+
+.secondary-button:hover:not(:disabled) {
+  color: white;
+  border-color: #3f6389;
+}
+
+@media (max-width: 900px) {
+  .page-actions {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .detection-pill,
+  .primary-button {
+    width: 100%;
+  }
+
+  .case-list {
+    grid-template-columns: 1fr;
+  }
+
+  .case-item:nth-child(odd) {
+    border-right: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .case-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .case-actions {
+    width: 100%;
+    align-items: flex-start;
+  }
+}

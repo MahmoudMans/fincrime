@@ -68,16 +68,42 @@ export interface GraphNetwork {
   edges: GraphEdge[];
 }
 
+export interface DetectionRun {
+  id: string;
+  status: string;
+  startedAt: string;
+  completedAt: string | null;
+  rulesExecuted: number;
+  candidatesFound: number;
+  alertsCreated: number;
+  alertsExisting: number;
+}
+
+export interface InvestigationCase {
+  id: string;
+  caseNumber: string;
+  title: string;
+  status: string;
+  priority: string;
+  summary: string;
+  assignedTo: string | null;
+  primaryAlertId: string;
+  primaryAlertCode: string;
+  alertRiskScore: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 async function request<T>(
   path: string,
-  signal?: AbortSignal
+  options?: RequestInit
 ): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: "GET",
     cache: "no-store",
-    signal,
+    ...options,
     headers: {
       Accept: "application/json",
+      ...(options?.headers ?? {}),
     },
   });
 
@@ -95,7 +121,9 @@ export function fetchDashboardOverview(
 ): Promise<DashboardOverview> {
   return request<DashboardOverview>(
     "/api/v1/dashboard/overview",
-    signal
+    {
+      signal,
+    }
   );
 }
 
@@ -104,6 +132,61 @@ export function fetchGraphNetwork(
 ): Promise<GraphNetwork> {
   return request<GraphNetwork>(
     "/api/v1/graph/network",
-    signal
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchDetectionRuns(
+  signal?: AbortSignal
+): Promise<DetectionRun[]> {
+  return request<DetectionRun[]>(
+    "/api/v1/detection-runs",
+    {
+      signal,
+    }
+  );
+}
+
+export function runAmlDetection(): Promise<DetectionRun> {
+  return request<DetectionRun>(
+    "/api/v1/detection-runs/run",
+    {
+      method: "POST",
+    }
+  );
+}
+
+export function fetchCases(
+  signal?: AbortSignal
+): Promise<InvestigationCase[]> {
+  return request<InvestigationCase[]>(
+    "/api/v1/cases",
+    {
+      signal,
+    }
+  );
+}
+
+export function openCaseFromAlert(
+  alertId: string
+): Promise<InvestigationCase> {
+  return request<InvestigationCase>(
+    `/api/v1/cases/from-alert/${alertId}`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export function advanceCase(
+  caseId: string
+): Promise<InvestigationCase> {
+  return request<InvestigationCase>(
+    `/api/v1/cases/${caseId}/advance`,
+    {
+      method: "POST",
+    }
   );
 }

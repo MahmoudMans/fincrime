@@ -17,3 +17,5 @@ target/
 data/
 neo4j-data/
 postgres-data/
+
+*.tsbuildinfo
