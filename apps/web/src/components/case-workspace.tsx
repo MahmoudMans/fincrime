@@ -5,6 +5,7 @@ import {
   BadgeCheck,
   BriefcaseBusiness,
   FileClock,
+  FileDown,
   FilePlus2,
   MessageSquareText,
   Network,
@@ -25,6 +26,7 @@ import {
   attachCaseAlertEvidence,
   attachCaseCircularGraphEvidence,
   attachCaseTransactionEvidence,
+  downloadCaseReport,
   fetchCaseWorkspace,
   resolveCaseWorkspace,
   type CaseWorkspaceView,
@@ -40,6 +42,16 @@ interface CaseWorkspaceProps {
 export function CaseWorkspace({
   cases,
 }: CaseWorkspaceProps) {
+  const {
+    hasAnyRole,
+  } = useAuth();
+
+  const canExportReport =
+    hasAnyRole(
+      "SENIOR_ANALYST",
+      "ADMIN"
+    );
+
   const [selectedCaseId, setSelectedCaseId] =
     useState<string | null>(null);
 
@@ -62,6 +74,9 @@ export function CaseWorkspace({
 
   const [action, setAction] =
     useState<string | null>(null);
+
+  const [exportingReport, setExportingReport] =
+    useState(false);
 
   const [error, setError] =
     useState<string | null>(null);
@@ -286,6 +301,58 @@ export function CaseWorkspace({
     }
   }
 
+  async function exportReport() {
+    if (
+      !activeCaseId ||
+      !canExportReport
+    ) {
+      return;
+    }
+
+    try {
+      setExportingReport(true);
+      setError(null);
+
+      const report =
+        await downloadCaseReport(
+          activeCaseId
+        );
+
+      const url =
+        URL.createObjectURL(
+          report.blob
+        );
+
+      const link =
+        document.createElement(
+          "a"
+        );
+
+      link.href = url;
+      link.download =
+        report.filename;
+
+      document.body.appendChild(
+        link
+      );
+
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(
+        url
+      );
+    } catch (exportError) {
+      setError(
+        exportError instanceof Error
+          ? exportError.message
+          : "Unable to export investigation report."
+      );
+    } finally {
+      setExportingReport(false);
+    }
+  }
+
   return (
     <section className="panel case-workspace-panel">
       <div className="panel-heading case-workspace-heading">
@@ -456,6 +523,46 @@ export function CaseWorkspace({
                 }
               </strong>
             </div>
+          </div>
+
+          <div className="case-report-toolbar">
+            <div>
+              <FileDown size={15} />
+
+              <div>
+                <strong>
+                  Investigation report
+                </strong>
+
+                <span>
+                  Case summary, evidence fingerprints,
+                  analyst notes and audit timeline.
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={
+                !canExportReport ||
+                exportingReport
+              }
+              title={
+                canExportReport
+                  ? "Export investigation PDF"
+                  : "Senior Analyst or Administrator required"
+              }
+              onClick={() =>
+                void exportReport()
+              }
+            >
+              <FileDown size={13} />
+
+              {exportingReport
+                ? "Generating..."
+                : "Export PDF"}
+            </button>
           </div>
 
           <div className="case-workspace-grid">

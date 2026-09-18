@@ -848,3 +848,66 @@ export function updateDetectionRule(
     }
   );
 }
+
+export interface CaseReportDownload {
+  blob: Blob;
+  filename: string;
+}
+
+export async function downloadCaseReport(
+  caseId: string
+): Promise<CaseReportDownload> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/case-reports/${encodeURIComponent(
+      caseId
+    )}.pdf`,
+    {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        Accept: "application/pdf",
+        ...(apiAccessToken
+          ? {
+              Authorization:
+                `Bearer ${apiAccessToken}`,
+            }
+          : {}),
+      },
+    }
+  );
+
+  if (!response.ok) {
+    if (response.status === 403) {
+      throw new Error(
+        "Senior Analyst or Administrator access is required to export investigation reports."
+      );
+    }
+
+    if (response.status === 401) {
+      throw new Error(
+        "Authentication is required to export investigation reports."
+      );
+    }
+
+    throw new Error(
+      `Case report export failed: ${response.status}`
+    );
+  }
+
+  const disposition =
+    response.headers.get(
+      "Content-Disposition"
+    ) ?? "";
+
+  const match =
+    /filename="?([^";]+)"?/i.exec(
+      disposition
+    );
+
+  return {
+    blob: await response.blob(),
+    filename:
+      match?.[1] ??
+      `fincrime-case-${caseId}.pdf`,
+  };
+}
