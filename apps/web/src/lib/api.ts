@@ -190,3 +190,195 @@ export function advanceCase(
     }
   );
 }
+
+export interface CustomerSummary {
+  id: string;
+  externalId: string;
+  fullName: string;
+  countryCode: string;
+  riskTier: string;
+  accountCount: number;
+  transactionCount: number;
+  openAlerts: number;
+  totalInbound: number;
+  totalOutbound: number;
+  createdAt: string;
+}
+
+export interface AccountSummary {
+  id: string;
+  accountNumber: string;
+  accountType: string;
+  currency: string;
+  balance: number;
+  status: string;
+  customerId: string;
+  customerName: string;
+  customerRiskTier: string;
+  transactionCount: number;
+  openAlerts: number;
+  totalInbound: number;
+  totalOutbound: number;
+  createdAt: string;
+}
+
+export interface CounterpartyView {
+  customerId: string;
+  fullName: string;
+  countryCode: string;
+  riskTier: string;
+  transactionCount: number;
+  volume: number;
+}
+
+export interface AlertSnapshot {
+  id: string;
+  code: string;
+  type: string;
+  severity: string;
+  riskScore: number;
+  status: string;
+  title: string;
+  createdAt: string;
+}
+
+export interface TransactionExplorerItem {
+  id: string;
+  reference: string;
+  sourceAccountId: string;
+  sourceAccount: string;
+  sourceCustomer: string;
+  destinationAccountId: string;
+  destinationAccount: string;
+  destinationCustomer: string;
+  amount: number;
+  currency: string;
+  occurredAt: string;
+  channel: string;
+  destinationCountry: string;
+  status: string;
+  riskScore: number;
+  riskReasons: string[];
+}
+
+export interface Customer360 {
+  summary: CustomerSummary;
+  accounts: AccountSummary[];
+  counterparties: CounterpartyView[];
+  recentTransactions: TransactionExplorerItem[];
+  alerts: AlertSnapshot[];
+}
+
+export interface AccountOwner {
+  id: string;
+  externalId: string;
+  fullName: string;
+  countryCode: string;
+  riskTier: string;
+}
+
+export interface Account360 {
+  summary: AccountSummary;
+  owner: AccountOwner;
+  counterparties: CounterpartyView[];
+  recentTransactions: TransactionExplorerItem[];
+  alerts: AlertSnapshot[];
+}
+
+function buildQuery(
+  values: Record<string, string | number | undefined>
+) {
+  const parameters = new URLSearchParams();
+
+  Object.entries(values).forEach(
+    ([key, value]) => {
+      if (
+        value !== undefined &&
+        value !== ""
+      ) {
+        parameters.set(
+          key,
+          String(value)
+        );
+      }
+    }
+  );
+
+  const result = parameters.toString();
+
+  return result
+    ? `?${result}`
+    : "";
+}
+
+export function fetchCustomers(
+  query = "",
+  signal?: AbortSignal
+): Promise<CustomerSummary[]> {
+  return request<CustomerSummary[]>(
+    `/api/v1/intelligence/customers${buildQuery({
+      query,
+    })}`,
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchCustomer360(
+  customerId: string,
+  signal?: AbortSignal
+): Promise<Customer360> {
+  return request<Customer360>(
+    `/api/v1/intelligence/customers/${customerId}`,
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchAccounts(
+  query = "",
+  signal?: AbortSignal
+): Promise<AccountSummary[]> {
+  return request<AccountSummary[]>(
+    `/api/v1/intelligence/accounts${buildQuery({
+      query,
+    })}`,
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchAccount360(
+  accountId: string,
+  signal?: AbortSignal
+): Promise<Account360> {
+  return request<Account360>(
+    `/api/v1/intelligence/accounts/${accountId}`,
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchTransactionExplorer(
+  filters: {
+    query?: string;
+    channel?: string;
+    status?: string;
+    minAmount?: string;
+    maxAmount?: string;
+  },
+  signal?: AbortSignal
+): Promise<TransactionExplorerItem[]> {
+  return request<TransactionExplorerItem[]>(
+    `/api/v1/intelligence/transactions${buildQuery(
+      filters
+    )}`,
+    {
+      signal,
+    }
+  );
+}

@@ -8,7 +8,6 @@ import {
   Building2,
   ChevronRight,
   CircleDollarSign,
-  Clock3,
   FileSearch,
   GitBranch,
   Landmark,
@@ -44,6 +43,7 @@ import {
 } from "@/lib/api";
 
 import { GraphExplorer } from "./graph-explorer";
+import { IntelligenceExplorer } from "./intelligence-explorer";
 
 const navItems = [
   {
@@ -462,6 +462,8 @@ export function DashboardShell() {
                   busyCaseId={caseActionId}
                   onAdvance={handleAdvanceCase}
                 />
+
+                <IntelligenceExplorer />
 
                 <TransactionTable
                   transactions={

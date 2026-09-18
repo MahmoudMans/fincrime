@@ -30,6 +30,15 @@ public interface TransactionRepository
     })
     List<TransactionEntity> findAll();
 
+    @Override
+    @EntityGraph(attributePaths = {
+            "sourceAccount",
+            "sourceAccount.customer",
+            "destinationAccount",
+            "destinationAccount.customer"
+    })
+    Optional<TransactionEntity> findById(UUID id);
+
     @EntityGraph(attributePaths = {
             "sourceAccount",
             "sourceAccount.customer",
@@ -40,6 +49,9 @@ public interface TransactionRepository
             String reference
     );
 
-    @Query("select coalesce(sum(t.amount), 0) from TransactionEntity t")
+    @Query(
+            "select coalesce(sum(t.amount), 0) "
+                    + "from TransactionEntity t"
+    )
     BigDecimal totalTransactionVolume();
 }
