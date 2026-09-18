@@ -1903,3 +1903,133 @@ export function reviewEvidence(
     }
   );
 }
+
+export interface InvestigationFinding {
+  id: string;
+  caseId: string;
+  caseNumber: string;
+  casePriority: string;
+  caseStatus: string;
+  findingReference: string;
+  findingVersion: number;
+  title: string;
+  narrative: string;
+  evidenceId: string;
+  evidenceReference: string;
+  evidenceReviewId: string;
+  evidenceReviewVersion: number;
+  evidenceRegistryFingerprint: string;
+  evidenceCustodyHeadHash: string;
+  status: string;
+  submittedBy: string;
+  submittedAt: string;
+  findingReviewId: string | null;
+  findingReviewDecision: string | null;
+  reviewNote: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  evidenceLineageCurrent: boolean;
+}
+
+export function fetchInvestigationFindings(
+  signal?: AbortSignal
+): Promise<InvestigationFinding[]> {
+  return request<InvestigationFinding[]>(
+    "/api/v1/investigation-findings",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchInvestigationFindingHistory(
+  caseId: string,
+  signal?: AbortSignal
+): Promise<InvestigationFinding[]> {
+  return request<InvestigationFinding[]>(
+    `/api/v1/investigation-findings/cases/${encodeURIComponent(
+      caseId
+    )}`,
+    {
+      signal,
+    }
+  );
+}
+
+export function submitInvestigationFinding(
+  caseId: string,
+  findingReference: string,
+  title: string,
+  narrative: string,
+  evidenceId: string
+): Promise<InvestigationFinding> {
+  const body =
+    new URLSearchParams();
+
+  body.set(
+    "findingReference",
+    findingReference
+  );
+
+  body.set(
+    "title",
+    title
+  );
+
+  body.set(
+    "narrative",
+    narrative
+  );
+
+  body.set(
+    "evidenceId",
+    evidenceId
+  );
+
+  return request<InvestigationFinding>(
+    `/api/v1/investigation-findings/cases/${encodeURIComponent(
+      caseId
+    )}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    }
+  );
+}
+
+export function reviewInvestigationFinding(
+  findingId: string,
+  decision: string,
+  reviewNote: string
+): Promise<InvestigationFinding> {
+  const body =
+    new URLSearchParams();
+
+  body.set(
+    "decision",
+    decision
+  );
+
+  body.set(
+    "reviewNote",
+    reviewNote
+  );
+
+  return request<InvestigationFinding>(
+    `/api/v1/investigation-findings/${encodeURIComponent(
+      findingId
+    )}/review`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    }
+  );
+}
