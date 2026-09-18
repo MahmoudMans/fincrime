@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: fincrime-graph-backend
+
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:55434/fincrime_graph}
+    username: ${DATABASE_USERNAME:fincrime}
+    password: ${DATABASE_PASSWORD:fincrime}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:57687}
+    authentication:
+      username: ${NEO4J_USERNAME:neo4j}
+      password: ${NEO4J_PASSWORD:fincrimegraph}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+  endpoint:
+    health:
+      show-details: always
+
+app:
+  cors:
+    allowed-origin: ${FRONTEND_ORIGIN:http://localhost:3000}

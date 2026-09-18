@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: fincrime-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fincrime_graph
+      POSTGRES_USER: fincrime
+      POSTGRES_PASSWORD: fincrime
+    ports:
+      - "${FINCRIME_POSTGRES_HOST_PORT:-55434}:5432"
+    volumes:
+      - fincrime_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U fincrime -d fincrime_graph
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  neo4j:
+    image: neo4j:2026.08.1-community
+    container_name: fincrime-neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/fincrimegraph
+    ports:
+      - "${FINCRIME_NEO4J_HTTP_HOST_PORT:-57474}:7474"
+      - "${FINCRIME_NEO4J_BOLT_HOST_PORT:-57687}:7687"
+    volumes:
+      - fincrime_neo4j_data:/data
+      - fincrime_neo4j_logs:/logs
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - cypher-shell -u neo4j -p fincrimegraph "RETURN 1" >/dev/null 2>&1 || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 40
+
+volumes:
+  fincrime_postgres_data:
+  fincrime_neo4j_data:
+  fincrime_neo4j_logs:
