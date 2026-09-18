@@ -101,7 +101,10 @@ public class GraphService {
                                 a.type = $type,
                                 a.currency = $currency,
                                 a.status = $status,
-                                a.balance = $balance
+                                a.balance = $balance,
+                                a.riskTier = $riskTier,
+                                a.ownerName = $ownerName,
+                                a.countryCode = $countryCode
                             MERGE (c)-[:OWNS]->(a)
                             """,
                             Values.parameters(
@@ -118,7 +121,13 @@ public class GraphService {
                                     "status",
                                     account.getStatus().name(),
                                     "balance",
-                                    account.getBalance().doubleValue()
+                                    account.getBalance().doubleValue(),
+                                    "riskTier",
+                                    account.getCustomer().getRiskTier().name(),
+                                    "ownerName",
+                                    account.getCustomer().getFullName(),
+                                    "countryCode",
+                                    account.getCustomer().getCountryCode()
                             )
                     ).consume();
 

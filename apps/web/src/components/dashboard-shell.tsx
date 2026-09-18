@@ -43,6 +43,7 @@ import {
 } from "@/lib/api";
 
 import { GraphExplorer } from "./graph-explorer";
+import { GraphInvestigationWorkbench } from "./graph-investigation-workbench";
 import { IntelligenceExplorer } from "./intelligence-explorer";
 
 const navItems = [
@@ -455,6 +456,8 @@ export function DashboardShell() {
                     onOpenCase={handleOpenCase}
                   />
                 </div>
+
+                <GraphInvestigationWorkbench />
 
                 <InvestigationPanel
                   cases={cases}

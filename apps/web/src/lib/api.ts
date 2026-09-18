@@ -382,3 +382,103 @@ export function fetchTransactionExplorer(
     }
   );
 }
+
+export interface GraphInvestigationSummary {
+  accounts: number;
+  transferRelationships: number;
+  highRiskAccounts: number;
+  crossBorderTransfers: number;
+  circularFlows: number;
+}
+
+export interface GraphAccountOption {
+  accountNumber: string;
+  ownerName: string;
+  countryCode: string;
+  riskTier: string;
+  status: string;
+}
+
+export interface InvestigationGraphNode {
+  id: string;
+  accountNumber: string;
+  riskTier: string;
+  ownerName: string;
+  countryCode: string;
+  status: string;
+}
+
+export interface InvestigationGraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  reference: string;
+  amount: number;
+  currency: string;
+}
+
+export interface InvestigationGraph {
+  mode: string;
+  headline: string;
+  description: string;
+  found: boolean;
+  hopCount: number;
+  cycleCount: number;
+  nodes: InvestigationGraphNode[];
+  edges: InvestigationGraphEdge[];
+}
+
+export function fetchGraphInvestigationSummary(
+  signal?: AbortSignal
+): Promise<GraphInvestigationSummary> {
+  return request<GraphInvestigationSummary>(
+    "/api/v1/graph-investigation/summary",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchGraphInvestigationAccounts(
+  signal?: AbortSignal
+): Promise<GraphAccountOption[]> {
+  return request<GraphAccountOption[]>(
+    "/api/v1/graph-investigation/accounts",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchMoneyFlowPath(
+  source: string,
+  target: string,
+  maxHops: number
+): Promise<InvestigationGraph> {
+  return request<InvestigationGraph>(
+    `/api/v1/graph-investigation/path${buildQuery({
+      source,
+      target,
+      maxHops,
+    })}`
+  );
+}
+
+export function fetchAccountNeighborhood(
+  account: string,
+  depth: number
+): Promise<InvestigationGraph> {
+  return request<InvestigationGraph>(
+    `/api/v1/graph-investigation/neighborhood${buildQuery({
+      account,
+      depth,
+    })}`
+  );
+}
+
+export function fetchCircularFlowGraph():
+Promise<InvestigationGraph> {
+  return request<InvestigationGraph>(
+    "/api/v1/graph-investigation/cycles"
+  );
+}
