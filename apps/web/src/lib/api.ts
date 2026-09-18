@@ -2033,3 +2033,135 @@ export function reviewInvestigationFinding(
     }
   );
 }
+
+export interface InvestigationConclusionPackage {
+  id: string;
+  caseId: string;
+  caseNumber: string;
+  packageVersion: number;
+  findingId: string;
+  findingVersion: number;
+  findingReference: string;
+  findingTitle: string;
+  findingNarrative: string;
+  findingReviewId: string;
+  findingReviewedBy: string;
+  evidenceId: string;
+  evidenceReviewId: string;
+  evidenceReviewVersion: number;
+  evidenceRegistryFingerprint: string;
+  evidenceCustodyHeadHash: string;
+  outcomeExecutionId: string;
+  outcomeProposalId: string;
+  outcomeDecisionVersion: number;
+  governedOutcome: string;
+  outcomeAttestationId: string;
+  outcomeProvenanceHash: string;
+  outcomeAuditRootHash: string;
+  conclusionSummary: string;
+  releaseRationale: string;
+  releaseFingerprint: string;
+  status: string;
+  preparedBy: string;
+  preparedAt: string;
+  releaseReviewId: string | null;
+  releaseDecision: string | null;
+  reviewNote: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  fingerprintValid: boolean;
+  findingLineageCurrent: boolean;
+  outcomeLineageCurrent: boolean;
+  sourceLineageCurrent: boolean;
+}
+
+export function fetchInvestigationConclusionPackages(
+  signal?: AbortSignal
+): Promise<InvestigationConclusionPackage[]> {
+  return request<InvestigationConclusionPackage[]>(
+    "/api/v1/conclusion-releases",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchInvestigationConclusionHistory(
+  caseId: string,
+  signal?: AbortSignal
+): Promise<InvestigationConclusionPackage[]> {
+  return request<InvestigationConclusionPackage[]>(
+    `/api/v1/conclusion-releases/cases/${encodeURIComponent(
+      caseId
+    )}`,
+    {
+      signal,
+    }
+  );
+}
+
+export function prepareInvestigationConclusionPackage(
+  findingId: string,
+  conclusionSummary: string,
+  releaseRationale: string
+): Promise<InvestigationConclusionPackage> {
+  const body =
+    new URLSearchParams();
+
+  body.set(
+    "conclusionSummary",
+    conclusionSummary
+  );
+
+  body.set(
+    "releaseRationale",
+    releaseRationale
+  );
+
+  return request<InvestigationConclusionPackage>(
+    `/api/v1/conclusion-releases/findings/${encodeURIComponent(
+      findingId
+    )}/prepare`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    }
+  );
+}
+
+export function reviewInvestigationConclusionPackage(
+  packageId: string,
+  decision: string,
+  reviewNote: string
+): Promise<InvestigationConclusionPackage> {
+  const body =
+    new URLSearchParams();
+
+  body.set(
+    "decision",
+    decision
+  );
+
+  body.set(
+    "reviewNote",
+    reviewNote
+  );
+
+  return request<InvestigationConclusionPackage>(
+    `/api/v1/conclusion-releases/${encodeURIComponent(
+      packageId
+    )}/review`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    }
+  );
+}

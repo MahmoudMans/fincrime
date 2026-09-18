@@ -45,6 +45,7 @@ import {
 
 import { useAuth } from "./auth-context";
 import { GraphExplorer } from "./graph-explorer";
+import { InvestigationConclusionRelease } from "./investigation-conclusion-release";
 import { InvestigationFindings } from "./investigation-findings";
 import { EvidenceReviewGovernance } from "./evidence-review-governance";
 import { EvidenceChainOfCustody } from "./evidence-chain-of-custody";
@@ -525,7 +526,9 @@ export function DashboardShell() {
 
                 <SecurityAuditLedger />
 
-                <InvestigationFindings />
+                <InvestigationConclusionRelease />
+
+<InvestigationFindings />
 
 <EvidenceReviewGovernance />
 
