@@ -45,6 +45,7 @@ import {
 
 import { useAuth } from "./auth-context";
 import { GraphExplorer } from "./graph-explorer";
+import { SecurityAuditLedger } from "./security-audit-ledger";
 import { ComplianceOperations } from "./compliance-operations";
 import { CustomerRiskDashboard } from "./customer-risk-dashboard";
 import { WatchlistScreening } from "./watchlist-screening";
@@ -514,6 +515,8 @@ export function DashboardShell() {
                     onOpenCase={handleOpenCase}
                   />
                 </div>
+
+                <SecurityAuditLedger />
 
                 <ComplianceOperations />
 

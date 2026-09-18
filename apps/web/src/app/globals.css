@@ -6322,3 +6322,372 @@ tbody tr:hover {
     justify-self: start;
   }
 }
+
+/* ==========================================================================
+   STEP 12 — TAMPER-EVIDENT SECURITY AUDIT LEDGER
+   ========================================================================== */
+
+.audit-ledger-panel {
+  margin-top: 16px;
+}
+
+.audit-ledger-heading {
+  align-items: center;
+}
+
+.audit-ledger-error {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  margin: 12px 16px 0;
+  padding: 9px 10px;
+
+  border: 1px solid
+    rgba(240, 92, 105, 0.25);
+
+  border-radius: 7px;
+
+  color: #ff8b95;
+  background: var(--red-soft);
+
+  font-size: 8px;
+}
+
+.audit-ledger-metrics {
+  display: grid;
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+
+  margin: 14px 16px 0;
+
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+
+  overflow: hidden;
+}
+
+.audit-ledger-metric,
+.audit-ledger-state {
+  position: relative;
+
+  min-height: 76px;
+
+  padding: 10px;
+
+  border-right:
+    1px solid var(--border-soft);
+}
+
+.audit-ledger-state:last-child {
+  border-right: 0;
+}
+
+.audit-ledger-metric > div,
+.audit-ledger-state > svg {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+
+  color: #557da6;
+}
+
+.audit-ledger-metric span,
+.audit-ledger-state span {
+  display: block;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.audit-ledger-metric strong,
+.audit-ledger-state strong {
+  display: block;
+
+  margin-top: 9px;
+
+  color: #d7e4f0;
+
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.audit-ledger-state.valid > svg,
+.audit-ledger-state.valid strong {
+  color: var(--green);
+}
+
+.audit-ledger-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(330px, 0.72fr);
+
+  gap: 10px;
+
+  margin: 12px 16px 16px;
+}
+
+.audit-ledger-card {
+  min-width: 0;
+
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+
+  overflow: hidden;
+
+  background:
+    rgba(255, 255, 255, 0.009);
+}
+
+.audit-ledger-card-heading {
+  min-height: 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  padding: 0 11px;
+
+  border-bottom:
+    1px solid var(--border-soft);
+}
+
+.audit-ledger-card-heading > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  color: #75a8dc;
+}
+
+.audit-ledger-card-heading strong {
+  color: #d3e0ed;
+
+  font-size: 9px;
+}
+
+.audit-ledger-card-heading > span {
+  color: var(--text-soft);
+
+  font-size: 7px;
+}
+
+.audit-root-hash {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+
+  margin: 12px;
+  padding: 11px;
+
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+
+  color: #6ea3d9;
+  background:
+    rgba(42, 93, 145, 0.07);
+}
+
+.audit-root-hash svg {
+  flex: 0 0 auto;
+}
+
+.audit-root-hash code {
+  min-width: 0;
+
+  overflow-wrap: anywhere;
+
+  color: #b8cde0;
+
+  font-size: 8px;
+  line-height: 1.55;
+}
+
+.audit-ledger-flags {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 7px;
+
+  margin: 0 12px 12px;
+}
+
+.audit-integrity-flag {
+  min-height: 40px;
+
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 8px;
+
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+
+  color: #eb747d;
+  background: var(--red-soft);
+}
+
+.audit-integrity-flag.valid {
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.audit-integrity-flag span {
+  color: inherit;
+
+  font-size: 7px;
+}
+
+.audit-ledger-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+
+  margin: 0 12px 12px;
+  padding: 9px 10px;
+
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+
+  color: #73a5d8;
+  background: var(--blue-soft);
+}
+
+.audit-ledger-note span {
+  color: var(--text-muted);
+
+  font-size: 7px;
+  line-height: 1.55;
+}
+
+.audit-verification-list {
+  max-height: 360px;
+  overflow: auto;
+}
+
+.audit-verification-row {
+  display: grid;
+  grid-template-columns:
+    29px minmax(0, 1fr);
+
+  gap: 8px;
+
+  padding: 10px;
+
+  border-bottom:
+    1px solid var(--border-soft);
+}
+
+.audit-verification-row:last-child {
+  border-bottom: 0;
+}
+
+.audit-verification-icon {
+  width: 27px;
+  height: 27px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 6px;
+
+  color: #eb747d;
+  background: var(--red-soft);
+}
+
+.audit-verification-icon.valid {
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.audit-verification-row strong {
+  display: block;
+
+  color: #d1deeb;
+
+  font-size: 8px;
+}
+
+.audit-verification-row span {
+  display: block;
+
+  margin-top: 3px;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+}
+
+.audit-verification-row p {
+  margin: 5px 0 0;
+
+  color: var(--text-muted);
+
+  font-size: 7px;
+  line-height: 1.5;
+}
+
+.audit-ledger-empty {
+  min-height: 170px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap: 6px;
+
+  padding: 18px;
+
+  color: var(--text-soft);
+
+  text-align: center;
+}
+
+.audit-ledger-empty strong {
+  color: var(--text-muted);
+
+  font-size: 9px;
+}
+
+.audit-ledger-empty span {
+  max-width: 230px;
+
+  font-size: 7px;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .audit-ledger-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .audit-ledger-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .audit-ledger-metrics {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .audit-ledger-metric,
+  .audit-ledger-state {
+    border-bottom:
+      1px solid var(--border-soft);
+  }
+
+  .audit-ledger-flags {
+    grid-template-columns: 1fr;
+  }
+}

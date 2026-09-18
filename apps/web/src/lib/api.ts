@@ -1228,3 +1228,65 @@ Promise<ComplianceSlaRecalculation> {
     }
   );
 }
+
+export interface SecurityAuditLedgerStatus {
+  sourceEventCount: number;
+  ledgerEntryCount: number;
+  uncoveredEventCount: number;
+  chainValid: boolean;
+  complete: boolean;
+  integrityValid: boolean;
+  rootHash: string;
+  verifiedAt: string;
+}
+
+export interface SecurityAuditLedgerRefresh {
+  appendedCount: number;
+  status: SecurityAuditLedgerStatus;
+}
+
+export interface SecurityAuditLedgerVerification {
+  id: string;
+  verifiedAt: string;
+  sourceEventCount: number;
+  ledgerEntryCount: number;
+  uncoveredEventCount: number;
+  appendedCount: number;
+  chainValid: boolean;
+  complete: boolean;
+  integrityValid: boolean;
+  rootHash: string;
+  detail: string;
+}
+
+export function fetchSecurityAuditLedgerStatus(
+  signal?: AbortSignal
+): Promise<SecurityAuditLedgerStatus> {
+  return request<SecurityAuditLedgerStatus>(
+    "/api/v1/security-ledger/status",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchSecurityAuditLedgerHistory(
+  signal?: AbortSignal
+): Promise<SecurityAuditLedgerVerification[]> {
+  return request<SecurityAuditLedgerVerification[]>(
+    "/api/v1/security-ledger/history",
+    {
+      signal,
+    }
+  );
+}
+
+export function refreshSecurityAuditLedger():
+Promise<SecurityAuditLedgerRefresh> {
+  return request<SecurityAuditLedgerRefresh>(
+    "/api/v1/security-ledger/refresh",
+    {
+      method: "POST",
+    }
+  );
+}
