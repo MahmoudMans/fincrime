@@ -7859,3 +7859,383 @@ tbody tr:hover {
       1px solid var(--border-soft);
   }
 }
+
+/* ==========================================================================
+   STEP 16 — CASE OUTCOME INTEGRITY ATTESTATIONS
+   ========================================================================== */
+
+.outcome-attestation-panel {
+  margin-top: 16px;
+}
+
+.outcome-attestation-heading {
+  align-items: center;
+}
+
+.outcome-attestation-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 7px 9px;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 6px;
+
+  color: #76a8da;
+
+  background: var(--blue-soft);
+
+  font-size: 7px;
+}
+
+.outcome-attestation-error {
+  margin: 12px 16px 0;
+
+  padding: 9px 10px;
+
+  border:
+    1px solid rgba(240, 92, 105, 0.25);
+
+  border-radius: 7px;
+
+  color: #ff8792;
+
+  background: var(--red-soft);
+
+  font-size: 8px;
+}
+
+.outcome-attestation-metrics {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  margin: 14px 16px 0;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 8px;
+
+  overflow: hidden;
+}
+
+.outcome-attestation-metric {
+  min-height: 70px;
+
+  padding: 10px;
+
+  border-right:
+    1px solid var(--border-soft);
+}
+
+.outcome-attestation-metric:last-child {
+  border-right: 0;
+}
+
+.outcome-attestation-metric span {
+  display: block;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+
+  letter-spacing: 0.05em;
+
+  text-transform: uppercase;
+}
+
+.outcome-attestation-metric strong {
+  display: block;
+
+  margin-top: 9px;
+
+  color: #d8e5f1;
+
+  font-size: 19px;
+
+  font-weight: 650;
+}
+
+.outcome-attestation-grid {
+  display: grid;
+
+  grid-template-columns:
+    minmax(300px, 0.75fr)
+    minmax(0, 1fr);
+
+  gap: 10px;
+
+  margin: 12px 16px 16px;
+}
+
+.outcome-attestation-card {
+  min-width: 0;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 8px;
+
+  overflow: hidden;
+}
+
+.outcome-attestation-card-heading {
+  min-height: 42px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 10px;
+
+  padding: 0 10px;
+
+  border-bottom:
+    1px solid var(--border-soft);
+}
+
+.outcome-attestation-card-heading > div {
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  color: #75a7da;
+}
+
+.outcome-attestation-card-heading strong {
+  color: #d2dfec;
+
+  font-size: 8px;
+}
+
+.outcome-attestation-card-heading > span {
+  color: var(--text-soft);
+
+  font-size: 6px;
+}
+
+.outcome-attestation-row {
+  min-height: 60px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 10px;
+
+  padding: 9px 10px;
+
+  border-bottom:
+    1px solid var(--border-soft);
+}
+
+.outcome-attestation-row:last-child {
+  border-bottom: 0;
+}
+
+.outcome-attestation-row strong {
+  display: block;
+
+  color: #d2dfec;
+
+  font-size: 8px;
+}
+
+.outcome-attestation-row span {
+  display: block;
+
+  margin-top: 3px;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+}
+
+.outcome-integrity-row {
+  padding: 10px;
+
+  border-bottom:
+    1px solid var(--border-soft);
+}
+
+.outcome-integrity-row:last-child {
+  border-bottom: 0;
+}
+
+.outcome-integrity-row-head {
+  display: flex;
+
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  gap: 10px;
+}
+
+.outcome-integrity-row-head strong {
+  display: block;
+
+  color: #d3e0ec;
+
+  font-size: 8px;
+}
+
+.outcome-integrity-row-head span {
+  display: block;
+
+  margin-top: 3px;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+}
+
+.outcome-integrity-state {
+  padding: 5px 7px;
+
+  border-radius: 5px;
+
+  color: #e4ae64;
+
+  background:
+    rgba(228, 174, 100, 0.09);
+
+  font-size: 6px;
+
+  font-weight: 700;
+}
+
+.outcome-integrity-state.valid {
+  color: var(--green);
+
+  background: var(--green-soft);
+}
+
+.outcome-integrity-hash {
+  display: grid;
+
+  grid-template-columns:
+    70px minmax(0, 1fr);
+
+  gap: 8px;
+
+  margin-top: 8px;
+
+  padding: 7px 8px;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 6px;
+
+  background:
+    rgba(255, 255, 255, 0.01);
+}
+
+.outcome-integrity-hash span {
+  color: var(--text-soft);
+
+  font-size: 6px;
+
+  text-transform: uppercase;
+}
+
+.outcome-integrity-hash code {
+  overflow-wrap: anywhere;
+
+  color: #a9c4de;
+
+  font-size: 7px;
+}
+
+.outcome-integrity-actions {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 10px;
+
+  margin-top: 8px;
+}
+
+.outcome-integrity-actions > span {
+  color: var(--text-soft);
+
+  font-size: 6px;
+}
+
+.outcome-verification-detail {
+  margin-top: 8px;
+
+  padding: 7px 8px;
+
+  border-radius: 6px;
+
+  color: var(--green);
+
+  background: var(--green-soft);
+
+  font-size: 7px;
+}
+
+.outcome-attestation-empty {
+  min-height: 150px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 6px;
+
+  color: var(--text-soft);
+
+  text-align: center;
+}
+
+.outcome-attestation-empty strong {
+  color: var(--text-muted);
+
+  font-size: 9px;
+}
+
+@media (max-width: 850px) {
+  .outcome-attestation-heading {
+    align-items: stretch;
+
+    flex-direction: column;
+  }
+
+  .outcome-attestation-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .outcome-attestation-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .outcome-attestation-metric {
+    border-right: 0;
+
+    border-bottom:
+      1px solid var(--border-soft);
+  }
+}

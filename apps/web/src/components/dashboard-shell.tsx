@@ -45,6 +45,7 @@ import {
 
 import { useAuth } from "./auth-context";
 import { GraphExplorer } from "./graph-explorer";
+import { OutcomeAttestations } from "./outcome-attestations";
 import { DecisionExecution } from "./decision-execution";
 import { DecisionGovernance } from "./decision-governance";
 import { InvestigationTriage } from "./investigation-triage";
@@ -521,7 +522,9 @@ export function DashboardShell() {
 
                 <SecurityAuditLedger />
 
-                <DecisionExecution />
+                <OutcomeAttestations />
+
+<DecisionExecution />
 
 <DecisionGovernance />
 

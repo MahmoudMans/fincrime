@@ -1580,3 +1580,76 @@ export function executeCaseDecision(
     }
   );
 }
+
+export interface CaseOutcomeAttestation {
+  id: string;
+  caseId: string;
+  caseNumber: string;
+  executionId: string;
+  proposalId: string;
+  decisionVersion: number;
+  governedOutcome: string;
+  provenanceHash: string;
+  auditRootHash: string;
+  attestedBy: string;
+  attestedAt: string;
+}
+
+export interface CaseOutcomeAttestationVerification {
+  id: string;
+  attestationId: string;
+  provenanceValid: boolean;
+  auditAnchorPresent: boolean;
+  integrityValid: boolean;
+  detail: string;
+  verifiedBy: string;
+  verifiedAt: string;
+}
+
+export function fetchCaseOutcomeAttestations(
+  signal?: AbortSignal
+): Promise<CaseOutcomeAttestation[]> {
+  return request<CaseOutcomeAttestation[]>(
+    "/api/v1/outcome-attestations",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchCaseOutcomeAttestationVerifications(
+  signal?: AbortSignal
+): Promise<CaseOutcomeAttestationVerification[]> {
+  return request<CaseOutcomeAttestationVerification[]>(
+    "/api/v1/outcome-attestations/verifications",
+    {
+      signal,
+    }
+  );
+}
+
+export function attestCaseOutcome(
+  caseId: string
+): Promise<CaseOutcomeAttestation> {
+  return request<CaseOutcomeAttestation>(
+    `/api/v1/outcome-attestations/cases/${encodeURIComponent(
+      caseId
+    )}/attest`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export function verifyCaseOutcomeAttestation(
+  attestationId: string
+): Promise<CaseOutcomeAttestationVerification> {
+  return request<CaseOutcomeAttestationVerification>(
+    `/api/v1/outcome-attestations/${encodeURIComponent(
+      attestationId
+    )}/verify`,
+    {
+      method: "POST",
+    }
+  );
+}
