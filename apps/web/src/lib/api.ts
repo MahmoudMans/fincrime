@@ -911,3 +911,126 @@ export async function downloadCaseReport(
       `fincrime-case-${caseId}.pdf`,
   };
 }
+
+export interface WatchlistEntry {
+  id: string;
+  listKey: string;
+  fullName: string;
+  aliases: string;
+  countryCode: string | null;
+  category: string;
+  riskLevel: string;
+  sourceName: string;
+  sourceReference: string;
+  active: boolean;
+  updatedAt: string;
+}
+
+export interface WatchlistScreeningRun {
+  id: string;
+  status: string;
+  customersScanned: number;
+  entriesScanned: number;
+  hitsFound: number;
+  triggeredBy: string;
+  startedAt: string;
+  completedAt: string | null;
+}
+
+export interface WatchlistScreeningHit {
+  id: string;
+  runId: string;
+  customerId: string;
+  customerName: string;
+  customerCountryCode: string;
+  customerRiskTier: string;
+  watchlistEntryId: string;
+  listKey: string;
+  watchlistName: string;
+  watchlistCountryCode: string | null;
+  category: string;
+  watchlistRiskLevel: string;
+  sourceName: string;
+  sourceReference: string;
+  matchedName: string;
+  nameScore: number;
+  countryMatch: boolean;
+  matchScore: number;
+  status: string;
+  reviewNote: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+}
+
+export function fetchWatchlistEntries(
+  signal?: AbortSignal
+): Promise<WatchlistEntry[]> {
+  return request<WatchlistEntry[]>(
+    "/api/v1/watchlist/entries",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchWatchlistRuns(
+  signal?: AbortSignal
+): Promise<WatchlistScreeningRun[]> {
+  return request<WatchlistScreeningRun[]>(
+    "/api/v1/watchlist/runs",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchWatchlistHits(
+  runId: string,
+  signal?: AbortSignal
+): Promise<WatchlistScreeningHit[]> {
+  return request<WatchlistScreeningHit[]>(
+    `/api/v1/watchlist/runs/${encodeURIComponent(
+      runId
+    )}/hits`,
+    {
+      signal,
+    }
+  );
+}
+
+export function runWatchlistScreening():
+Promise<WatchlistScreeningRun> {
+  return request<WatchlistScreeningRun>(
+    "/api/v1/watchlist/runs",
+    {
+      method: "POST",
+    }
+  );
+}
+
+export function reviewWatchlistHit(
+  hitId: string,
+  decision: "CLEARED" | "ESCALATED",
+  note: string
+): Promise<WatchlistScreeningHit> {
+  const body =
+    new URLSearchParams({
+      decision,
+      note,
+    });
+
+  return request<WatchlistScreeningHit>(
+    `/api/v1/watchlist/hits/${encodeURIComponent(
+      hitId
+    )}/review`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    }
+  );
+}

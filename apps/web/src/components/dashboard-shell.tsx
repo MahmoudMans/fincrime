@@ -45,6 +45,7 @@ import {
 
 import { useAuth } from "./auth-context";
 import { GraphExplorer } from "./graph-explorer";
+import { WatchlistScreening } from "./watchlist-screening";
 import { RuleGovernance } from "./rule-governance";
 import { GraphInvestigationWorkbench } from "./graph-investigation-workbench";
 import { IntelligenceExplorer } from "./intelligence-explorer";
@@ -511,6 +512,8 @@ export function DashboardShell() {
                     onOpenCase={handleOpenCase}
                   />
                 </div>
+
+                <WatchlistScreening />
 
                 <RuleGovernance />
 
