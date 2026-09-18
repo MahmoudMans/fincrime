@@ -7528,3 +7528,334 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   STEP 15 — CONTROLLED DECISION EXECUTION
+   ========================================================================== */
+
+.decision-execution-panel {
+  margin-top: 16px;
+}
+
+.decision-execution-heading {
+  align-items: center;
+}
+
+.decision-execution-control {
+  display: flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  padding: 7px 9px;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 6px;
+
+  color: var(--green);
+
+  background: var(--green-soft);
+
+  font-size: 7px;
+}
+
+.decision-execution-error {
+  margin: 12px 16px 0;
+
+  padding: 9px 10px;
+
+  border:
+    1px solid rgba(240, 92, 105, 0.25);
+
+  border-radius: 7px;
+
+  color: #ff8792;
+
+  background: var(--red-soft);
+
+  font-size: 8px;
+}
+
+.decision-execution-metrics {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  margin: 14px 16px 0;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 8px;
+
+  overflow: hidden;
+}
+
+.decision-execution-metric {
+  min-height: 70px;
+
+  padding: 10px;
+
+  border-right:
+    1px solid var(--border-soft);
+}
+
+.decision-execution-metric:last-child {
+  border-right: 0;
+}
+
+.decision-execution-metric span {
+  display: block;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+
+  letter-spacing: 0.05em;
+
+  text-transform: uppercase;
+}
+
+.decision-execution-metric strong {
+  display: block;
+
+  margin-top: 9px;
+
+  color: #d8e5f1;
+
+  font-size: 19px;
+
+  font-weight: 650;
+}
+
+.decision-execution-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 10px;
+
+  margin: 12px 16px 16px;
+}
+
+.decision-execution-card {
+  min-width: 0;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 8px;
+
+  overflow: hidden;
+}
+
+.decision-execution-card-heading {
+  min-height: 42px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 10px;
+
+  padding: 0 10px;
+
+  border-bottom:
+    1px solid var(--border-soft);
+}
+
+.decision-execution-card-heading > div {
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  color: #75a7da;
+}
+
+.decision-execution-card-heading strong {
+  color: #d2dfec;
+
+  font-size: 8px;
+}
+
+.decision-execution-card-heading > span {
+  color: var(--text-soft);
+
+  font-size: 6px;
+}
+
+.decision-execution-note {
+  padding: 10px;
+
+  border-bottom:
+    1px solid var(--border-soft);
+}
+
+.decision-execution-note label {
+  display: block;
+}
+
+.decision-execution-note label > span {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+
+  letter-spacing: 0.05em;
+
+  text-transform: uppercase;
+}
+
+.decision-execution-note input {
+  width: 100%;
+
+  min-height: 34px;
+
+  border:
+    1px solid var(--border-soft);
+
+  border-radius: 6px;
+
+  padding: 0 8px;
+
+  color: #d2dfeb;
+
+  background:
+    rgba(0, 0, 0, 0.15);
+
+  font-size: 7px;
+}
+
+.decision-executable-list,
+.governed-outcome-list {
+  max-height: 360px;
+
+  overflow: auto;
+}
+
+.decision-executable-row,
+.governed-outcome-row {
+  min-height: 59px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 10px;
+
+  padding: 9px 10px;
+
+  border-bottom:
+    1px solid var(--border-soft);
+}
+
+.decision-executable-row:last-child,
+.governed-outcome-row:last-child {
+  border-bottom: 0;
+}
+
+.decision-executable-row > div:first-child,
+.governed-outcome-row > div:first-child {
+  min-width: 0;
+}
+
+.decision-executable-row strong,
+.governed-outcome-row strong {
+  display: block;
+
+  color: #d2dfec;
+
+  font-size: 8px;
+}
+
+.decision-executable-row span,
+.governed-outcome-row span {
+  display: block;
+
+  margin-top: 3px;
+
+  color: var(--text-soft);
+
+  font-size: 6px;
+}
+
+.governed-outcome-badge {
+  flex: 0 0 auto;
+
+  padding: 6px 8px;
+
+  border-radius: 6px;
+
+  color: var(--green);
+
+  background: var(--green-soft);
+
+  font-size: 6px;
+
+  font-weight: 700;
+}
+
+.decision-execution-empty {
+  min-height: 150px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 6px;
+
+  padding: 15px;
+
+  color: var(--text-soft);
+
+  text-align: center;
+}
+
+.decision-execution-empty strong {
+  color: var(--text-muted);
+
+  font-size: 9px;
+}
+
+@media (max-width: 850px) {
+  .decision-execution-heading {
+    align-items: stretch;
+
+    flex-direction: column;
+  }
+
+  .decision-execution-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .decision-execution-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .decision-execution-metric {
+    border-right: 0;
+
+    border-bottom:
+      1px solid var(--border-soft);
+  }
+}

@@ -1501,3 +1501,82 @@ export function reviewCaseDecisionProposal(
     }
   );
 }
+
+export interface CaseDecisionExecution {
+  id: string;
+  proposalId: string;
+  caseId: string;
+  caseNumber: string;
+  casePriority: string;
+  caseStatus: string;
+  decisionVersion: number;
+  sourceRecommendation: string;
+  governedOutcome: string;
+  sourceProposedBy: string;
+  sourceReviewedBy: string;
+  executionNote: string;
+  executedBy: string;
+  executedAt: string;
+}
+
+export interface GovernedCaseOutcome {
+  caseId: string;
+  caseNumber: string;
+  casePriority: string;
+  caseStatus: string;
+  executionId: string;
+  proposalId: string;
+  decisionVersion: number;
+  governedOutcome: string;
+  effectiveAt: string;
+  lastUpdatedBy: string;
+}
+
+export function fetchDecisionExecutions(
+  signal?: AbortSignal
+): Promise<CaseDecisionExecution[]> {
+  return request<CaseDecisionExecution[]>(
+    "/api/v1/decision-execution/executions",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchGovernedCaseOutcomes(
+  signal?: AbortSignal
+): Promise<GovernedCaseOutcome[]> {
+  return request<GovernedCaseOutcome[]>(
+    "/api/v1/decision-execution/outcomes",
+    {
+      signal,
+    }
+  );
+}
+
+export function executeCaseDecision(
+  proposalId: string,
+  executionNote: string
+): Promise<CaseDecisionExecution> {
+  const body =
+    new URLSearchParams();
+
+  body.set(
+    "executionNote",
+    executionNote
+  );
+
+  return request<CaseDecisionExecution>(
+    `/api/v1/decision-execution/proposals/${encodeURIComponent(
+      proposalId
+    )}/execute`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    }
+  );
+}
