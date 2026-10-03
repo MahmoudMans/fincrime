@@ -45,21 +45,6 @@ import {
 
 import { useAuth } from "./auth-context";
 import { GraphExplorer } from "./graph-explorer";
-import { InvestigationConclusionRelease } from "./investigation-conclusion-release";
-import { InvestigationFindings } from "./investigation-findings";
-import { EvidenceReviewGovernance } from "./evidence-review-governance";
-import { EvidenceChainOfCustody } from "./evidence-chain-of-custody";
-import { OutcomeAttestations } from "./outcome-attestations";
-import { DecisionExecution } from "./decision-execution";
-import { DecisionGovernance } from "./decision-governance";
-import { InvestigationTriage } from "./investigation-triage";
-import { SecurityAuditLedger } from "./security-audit-ledger";
-import { ComplianceOperations } from "./compliance-operations";
-import { CustomerRiskDashboard } from "./customer-risk-dashboard";
-import { WatchlistScreening } from "./watchlist-screening";
-import { RuleGovernance } from "./rule-governance";
-import { GraphInvestigationWorkbench } from "./graph-investigation-workbench";
-import { IntelligenceExplorer } from "./intelligence-explorer";
 import { CaseWorkspace } from "./case-workspace";
 
 const navItems = [
@@ -89,6 +74,10 @@ const navItems = [
     icon: ShieldAlert,
   },
 ];
+
+import {
+  OperationsGovernanceWorkspace,
+} from "./operations-governance-workspace";
 
 export function DashboardShell() {
   const {
@@ -524,33 +513,33 @@ export function DashboardShell() {
                   />
                 </div>
 
-                <SecurityAuditLedger />
+                <OperationsGovernanceWorkspace />
 
-                <InvestigationConclusionRelease />
 
-<InvestigationFindings />
 
-<EvidenceReviewGovernance />
 
-<EvidenceChainOfCustody />
 
-<OutcomeAttestations />
 
-<DecisionExecution />
 
-<DecisionGovernance />
 
-<InvestigationTriage />
 
-                <ComplianceOperations />
 
-                <CustomerRiskDashboard />
 
-                <WatchlistScreening />
 
-                <RuleGovernance />
 
-                <GraphInvestigationWorkbench />
+
+
+
+
+
+
+
+
+
+
+
+
+
 
                 <InvestigationPanel
                   cases={cases}
@@ -561,7 +550,7 @@ export function DashboardShell() {
 
                 <CaseWorkspace cases={cases} />
 
-                <IntelligenceExplorer />
+
 
                 <TransactionTable
                   transactions={
