@@ -12150,3 +12150,150 @@ tbody tr:hover {
 /* ==========================================================================
    END FINCRIME OVERVIEW IA V2
    ========================================================================== */
+
+/* ==========================================================================
+   FINCRIME OVERVIEW IA V3 FINAL CLEANUP
+   ========================================================================== */
+
+/*
+ * Overview contract:
+ * orientation -> prioritization -> active case -> next workspace.
+ *
+ * Detailed case evidence and the transaction ledger now render only when the
+ * Investigation operations workspace is intentionally opened.
+ */
+
+
+/* --------------------------------------------------------------------------
+   Compact active-investigation summary
+   -------------------------------------------------------------------------- */
+
+.overview-investigation-cases {
+  margin-top: 16px;
+}
+
+.overview-investigation-cases > section {
+  min-height: 0 !important;
+  margin-top: 0 !important;
+}
+
+.overview-investigation-cases > section > div:last-child {
+  min-height: 0 !important;
+
+  grid-template-columns:
+    minmax(
+      0,
+      1fr
+    ) !important;
+}
+
+.overview-investigation-cases
+> section
+> div:last-child
+> :empty {
+  display: none;
+}
+
+.overview-investigation-cases
+> section
+[class*="empty"] {
+  min-height: 0 !important;
+}
+
+.overview-investigation-cases
+> section
+[class*="list"] {
+  min-height: 0 !important;
+}
+
+.overview-investigation-cases
+> section
+[class*="grid"] {
+  min-height: 0 !important;
+
+  grid-template-columns:
+    minmax(
+      0,
+      1fr
+    ) !important;
+}
+
+
+/* --------------------------------------------------------------------------
+   Overview boundary
+   -------------------------------------------------------------------------- */
+
+.overview-investigation-cases
++ .operations-governance-hub {
+  margin-top: 16px;
+}
+
+
+/* --------------------------------------------------------------------------
+   Detailed investigation workspace slots
+   -------------------------------------------------------------------------- */
+
+.operations-governance-hub__slot {
+  display: grid;
+
+  gap: 16px;
+}
+
+.operations-governance-hub__slot
+> section {
+  margin-top: 0 !important;
+}
+
+.operations-governance-hub__slot--case {
+  order: -10;
+}
+
+.operations-governance-hub__slot--transactions {
+  margin-top: 4px;
+}
+
+
+/*
+ * Once opened inside Investigation operations, the case workspace should use
+ * its intrinsic content height instead of acting like another Overview page.
+ */
+
+.operations-governance-hub__slot--case
+[class*="workspace"] {
+  min-height: 0 !important;
+}
+
+.operations-governance-hub__slot--case
+[class*="panel"] {
+  min-height: 0;
+}
+
+
+/*
+ * The full transaction ledger remains available, but only after the analyst
+ * explicitly enters Investigation operations.
+ */
+
+.operations-governance-hub__slot--transactions
+table {
+  width: 100%;
+}
+
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 850px) {
+  .overview-investigation-cases
+  > section
+  > div:last-child {
+    grid-template-columns:
+      1fr !important;
+  }
+}
+
+
+/* ==========================================================================
+   END FINCRIME OVERVIEW IA V3 FINAL CLEANUP
+   ========================================================================== */

@@ -513,7 +513,7 @@ export function DashboardShell() {
                   />
                 </div>
 
-                <OperationsGovernanceWorkspace />
+
 
 
 
@@ -546,17 +546,13 @@ export function DashboardShell() {
                   latestRun={latestRun}
                   busyCaseId={caseActionId}
                   onAdvance={handleAdvanceCase}
+                  transactions={overview.recentTransactions}
                 />
 
-                <CaseWorkspace cases={cases} />
 
 
 
-                <TransactionTable
-                  transactions={
-                    overview.recentTransactions
-                  }
-                />
+
               </>
             )}
         </div>
@@ -756,11 +752,13 @@ function AlertPanel({
 
 function InvestigationPanel({
   cases,
+  transactions,
   latestRun,
   busyCaseId,
   onAdvance,
 }: {
   cases: InvestigationCase[];
+  transactions: TransactionView[];
   latestRun: DetectionRun | null;
   busyCaseId: string | null;
   onAdvance: (
@@ -768,140 +766,155 @@ function InvestigationPanel({
   ) => Promise<void>;
 }) {
   return (
-    <section className="panel cases-panel">
-      <div className="panel-heading">
-        <div>
-          <div className="eyebrow">
-            Analyst workflow
-          </div>
-
-          <h2>Investigation cases</h2>
-
-          <p>
-            Cases opened directly from suspicious
-            activity alerts.
-          </p>
-        </div>
-
-        {latestRun && (
-          <div className="detection-run-summary">
-            <Radar size={15} />
-
-            <div>
-              <strong>
-                {latestRun.candidatesFound}
-              </strong>
-
-              <span>
-                signals · {latestRun.rulesExecuted}
-                {" "}rules
-              </span>
+    <>
+    <div className="overview-investigation-cases">
+  <section className="panel cases-panel">
+        <div className="panel-heading">
+          <div>
+            <div className="eyebrow">
+              Analyst workflow
             </div>
+
+            <h2>Investigation cases</h2>
+
+            <p>
+              Cases opened directly from suspicious
+              activity alerts.
+            </p>
           </div>
-        )}
-      </div>
 
-      {cases.length === 0 ? (
-        <div className="case-empty">
-          <BriefcaseBusiness size={25} />
+          {latestRun && (
+            <div className="detection-run-summary">
+              <Radar size={15} />
 
-          <strong>No investigation cases yet</strong>
+              <div>
+                <strong>
+                  {latestRun.candidatesFound}
+                </strong>
 
-          <span>
-            Open a case from a priority alert to
-            start analyst review.
-          </span>
-        </div>
-      ) : (
-        <div className="case-list">
-          {cases.map(
-            (investigationCase) => (
-              <article
-                className="case-item"
-                key={investigationCase.id}
-              >
-                <div className="case-main">
-                  <div className="case-title-row">
-                    <span
-                      className={
-                        `case-priority priority-${investigationCase.priority.toLowerCase()}`
-                      }
-                    >
-                      {investigationCase.priority}
-                    </span>
-
-                    <strong>
-                      {investigationCase.title}
-                    </strong>
-                  </div>
-
-                  <div className="case-meta">
-                    <span>
-                      {investigationCase.caseNumber}
-                    </span>
-
-                    <span>
-                      Alert{" "}
-                      {
-                        investigationCase
-                          .primaryAlertCode
-                      }
-                    </span>
-
-                    <span>
-                      Risk{" "}
-                      {
-                        investigationCase
-                          .alertRiskScore
-                      }
-                    </span>
-                  </div>
-                </div>
-
-                <div className="case-actions">
-                  <span
-                    className={
-                      `case-status case-status-${investigationCase.status.toLowerCase()}`
-                    }
-                  >
-                    {humanize(
-                      investigationCase.status
-                    )}
-                  </span>
-
-                  {investigationCase.status !==
-                    "CLOSED" && (
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      disabled={
-                        busyCaseId ===
-                        investigationCase.id
-                      }
-                      onClick={() =>
-                        void onAdvance(
-                          investigationCase.id
-                        )
-                      }
-                    >
-                      <ChevronRight size={13} />
-
-                      {busyCaseId ===
-                      investigationCase.id
-                        ? "Updating..."
-                        : investigationCase.status ===
-                            "OPEN"
-                          ? "Start review"
-                          : "Close case"}
-                    </button>
-                  )}
-                </div>
-              </article>
-            )
+                <span>
+                  signals · {latestRun.rulesExecuted}
+                  {" "}rules
+                </span>
+              </div>
+            </div>
           )}
         </div>
-      )}
-    </section>
+
+        {cases.length === 0 ? (
+          <div className="case-empty">
+            <BriefcaseBusiness size={25} />
+
+            <strong>No investigation cases yet</strong>
+
+            <span>
+              Open a case from a priority alert to
+              start analyst review.
+            </span>
+          </div>
+        ) : (
+          <div className="case-list">
+            {cases.map(
+              (investigationCase) => (
+                <article
+                  className="case-item"
+                  key={investigationCase.id}
+                >
+                  <div className="case-main">
+                    <div className="case-title-row">
+                      <span
+                        className={
+                          `case-priority priority-${investigationCase.priority.toLowerCase()}`
+                        }
+                      >
+                        {investigationCase.priority}
+                      </span>
+
+                      <strong>
+                        {investigationCase.title}
+                      </strong>
+                    </div>
+
+                    <div className="case-meta">
+                      <span>
+                        {investigationCase.caseNumber}
+                      </span>
+
+                      <span>
+                        Alert{" "}
+                        {
+                          investigationCase
+                            .primaryAlertCode
+                        }
+                      </span>
+
+                      <span>
+                        Risk{" "}
+                        {
+                          investigationCase
+                            .alertRiskScore
+                        }
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="case-actions">
+                    <span
+                      className={
+                        `case-status case-status-${investigationCase.status.toLowerCase()}`
+                      }
+                    >
+                      {humanize(
+                        investigationCase.status
+                      )}
+                    </span>
+
+                    {investigationCase.status !==
+                      "CLOSED" && (
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={
+                          busyCaseId ===
+                          investigationCase.id
+                        }
+                        onClick={() =>
+                          void onAdvance(
+                            investigationCase.id
+                          )
+                        }
+                      >
+                        <ChevronRight size={13} />
+
+                        {busyCaseId ===
+                        investigationCase.id
+                          ? "Updating..."
+                          : investigationCase.status ===
+                              "OPEN"
+                            ? "Start review"
+                            : "Close case"}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              )
+            )}
+          </div>
+        )}
+      </section>
+</div>
+
+<OperationsGovernanceWorkspace
+  caseWorkspace={
+      <CaseWorkspace cases={cases} />
+  }
+  recentTransactions={
+    <TransactionTable
+      transactions={transactions}
+    />
+  }
+/>
+    </>
   );
 }
 

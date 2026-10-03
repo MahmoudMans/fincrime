@@ -7,6 +7,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import {
+  type ReactNode,
   useState,
 } from "react";
 
@@ -61,7 +62,13 @@ type DetailedWorkspace =
   | "governance";
 
 
-export function OperationsGovernanceWorkspace() {
+export function OperationsGovernanceWorkspace({
+  caseWorkspace,
+  recentTransactions,
+}: {
+  caseWorkspace: ReactNode;
+  recentTransactions: ReactNode;
+}) {
   const [
     expanded,
     setExpanded,
@@ -320,6 +327,10 @@ export function OperationsGovernanceWorkspace() {
             {activeWorkspace ===
             "operations" ? (
               <>
+              <div className="operations-governance-hub__slot operations-governance-hub__slot--case">
+                {caseWorkspace}
+              </div>
+
               <IntelligenceExplorer />
 
               <GraphInvestigationWorkbench />
@@ -331,6 +342,10 @@ export function OperationsGovernanceWorkspace() {
               <WatchlistScreening />
 
               <ComplianceOperations />
+
+              <div className="operations-governance-hub__slot operations-governance-hub__slot--transactions">
+                {recentTransactions}
+              </div>
               </>
             ) : (
               <>
