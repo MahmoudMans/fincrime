@@ -541,28 +541,40 @@ export function CaseWorkspace({
               </div>
             </div>
 
-            <button
-              type="button"
-              className="secondary-button"
-              disabled={
-                !canExportReport ||
-                exportingReport
-              }
-              title={
-                canExportReport
-                  ? "Export investigation PDF"
-                  : "Senior Analyst or Administrator required"
-              }
-              onClick={() =>
-                void exportReport()
-              }
-            >
-              <FileDown size={13} />
+            <div className="case-permission-action case-permission-action--export">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={
+                  !canExportReport ||
+                  exportingReport
+                }
+                title={
+                  canExportReport
+                    ? "Export investigation PDF"
+                    : "Senior Analyst or Administrator required"
+                }
+                onClick={() =>
+                  void exportReport()
+                }
+               aria-describedby={!canExportReport ? "case-export-permission" : undefined}>
+                <FileDown size={13} />
 
-              {exportingReport
-                ? "Generating..."
-                : "Export PDF"}
-            </button>
+                {exportingReport
+                  ? "Generating..."
+                  : "Export PDF"}
+              </button>
+
+              {!canExportReport && (
+                <span
+                  id="case-export-permission"
+                  className="case-permission-note"
+                  role="note"
+                >
+                  Senior Analyst or Administrator required
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="case-workspace-grid">
@@ -1006,20 +1018,32 @@ function AssignmentSection({
         }
       />
 
-      <button
-        type="button"
-        className="secondary-button case-wide-button"
-        disabled={
-          !canManageCase ||
-          !assignee.trim() ||
-          action !== null
-        }
-        onClick={() =>
-          void onAssign()
-        }
-      >
-        Assign case
-      </button>
+      <div className="case-permission-action case-permission-action--assign">
+        <button
+          type="button"
+          className="secondary-button case-wide-button"
+          disabled={
+            !canManageCase ||
+            !assignee.trim() ||
+            action !== null
+          }
+          onClick={() =>
+            void onAssign()
+          }
+         aria-describedby={!canManageCase ? "case-assign-permission" : undefined}>
+          Assign case
+        </button>
+
+        {!canManageCase && (
+          <span
+            id="case-assign-permission"
+            className="case-permission-note"
+            role="note"
+          >
+            Senior Analyst or Administrator required
+          </span>
+        )}
+      </div>
     </section>
   );
 }

@@ -12784,3 +12784,179 @@ code {
 /* ==========================================================================
    END FINCRIME OVERVIEW POLISH V1
    ========================================================================== */
+
+/* ==========================================================================
+   FINCRIME INVESTIGATIONS UX POLISH V1
+   ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+   CASE QUEUE — DISTINCT PAGE/SECTION HIERARCHY
+   -------------------------------------------------------------------------- */
+
+.workspace-view-investigations
+.overview-investigation-cases
+.eyebrow {
+  letter-spacing:
+    0.08em;
+}
+
+
+/* --------------------------------------------------------------------------
+   ROLE-RESTRICTED ACTION EXPLANATIONS
+   -------------------------------------------------------------------------- */
+
+.case-permission-action {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 5px;
+}
+
+.case-permission-action--export {
+  justify-items: end;
+}
+
+.case-permission-action--assign {
+  width: 100%;
+
+  justify-items: stretch;
+}
+
+.case-permission-action--assign
+> button {
+  width: 100%;
+}
+
+.case-permission-note {
+  display: block;
+
+  max-width: 230px;
+
+  color:
+    var(
+      --text-soft,
+      #71869e
+    );
+
+  font-size: 10.5px;
+
+  line-height: 1.4;
+}
+
+.case-permission-action--export
+.case-permission-note {
+  text-align: right;
+}
+
+.case-permission-action--assign
+.case-permission-note {
+  text-align: left;
+}
+
+
+/* --------------------------------------------------------------------------
+   LONG OPERATIONAL / EVIDENCE VALUES
+   -------------------------------------------------------------------------- */
+
+/*
+ * Preserve complete evidence values.
+ * Long fingerprints, transaction snapshots and graph evidence may wrap rather
+ * than forcing the workspace beyond its available content column.
+ */
+
+.workspace-view-investigations
+code,
+
+.workspace-view-investigations
+pre {
+  max-width: 100%;
+
+  white-space: pre-wrap;
+
+  overflow-wrap: anywhere;
+
+  word-break: break-word;
+
+  line-height: 1.5;
+
+  user-select: text;
+}
+
+
+/*
+ * Technical values rendered in generic non-code containers should also be
+ * allowed to shrink inside grid/flex parents.
+ */
+
+.workspace-view-investigations
+[class*="evidence"],
+
+.workspace-view-investigations
+[class*="snapshot"],
+
+.workspace-view-investigations
+[class*="fingerprint"] {
+  min-width: 0;
+}
+
+
+/* --------------------------------------------------------------------------
+   SECONDARY OPERATIONAL METADATA
+   -------------------------------------------------------------------------- */
+
+.workspace-view-investigations
+[class*="meta"],
+
+.workspace-view-investigations
+[class*="timestamp"],
+
+.workspace-view-investigations
+[class*="timeline"]
+small,
+
+.workspace-view-investigations
+[class*="evidence"]
+small {
+  font-size:
+    10.5px !important;
+
+  line-height:
+    1.45 !important;
+}
+
+
+/*
+ * Keep descriptive secondary text subordinate while avoiding illegibly tiny
+ * operational context.
+ */
+
+.workspace-view-investigations
+small {
+  line-height:
+    1.45;
+}
+
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 850px) {
+  .case-permission-action--export {
+    justify-items: stretch;
+  }
+
+  .case-permission-action--export
+  .case-permission-note {
+    max-width: none;
+
+    text-align: left;
+  }
+}
+
+
+/* ==========================================================================
+   END FINCRIME INVESTIGATIONS UX POLISH V1
+   ========================================================================== */

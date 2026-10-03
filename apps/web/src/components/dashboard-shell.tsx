@@ -1014,7 +1014,7 @@ function InvestigationPanel({
         <div className="panel-heading">
           <div>
             <div className="eyebrow">
-              Analyst workflow
+              Case queue
             </div>
 
             <h2>Investigation cases</h2>
