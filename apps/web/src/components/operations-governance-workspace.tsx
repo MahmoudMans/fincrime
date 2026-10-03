@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import {
   type ReactNode,
+  useEffect,
   useState,
 } from "react";
 
@@ -97,6 +98,67 @@ export function OperationsGovernanceWorkspace({
     );
   }
 
+
+  useEffect(() => {
+    function handleSidebarNavigation(
+      event: Event
+    ) {
+      const navigationEvent =
+        event as CustomEvent<string>;
+
+      const target =
+        navigationEvent.detail;
+
+      if (
+        target !== "transactions" &&
+        target !== "entities"
+      ) {
+        return;
+      }
+
+      setActiveWorkspace(
+        "operations"
+      );
+
+      setExpanded(
+        true
+      );
+
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          const destination =
+            document.getElementById(
+              `workspace-${target}`
+            );
+
+          if (!destination) {
+            return;
+          }
+
+          destination.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+
+          destination.focus({
+            preventScroll: true,
+          });
+        });
+      });
+    }
+
+    window.addEventListener(
+      "fincrime:workspace-navigation",
+      handleSidebarNavigation
+    );
+
+    return () => {
+      window.removeEventListener(
+        "fincrime:workspace-navigation",
+        handleSidebarNavigation
+      );
+    };
+  }, []);
 
   return (
     <section
@@ -331,7 +393,13 @@ export function OperationsGovernanceWorkspace({
                 {caseWorkspace}
               </div>
 
-              <IntelligenceExplorer />
+              <div
+                id="workspace-entities"
+                className="operations-governance-hub__slot workspace-nav-anchor"
+                tabIndex={-1}
+              >
+                <IntelligenceExplorer />
+              </div>
 
               <GraphInvestigationWorkbench />
 
@@ -343,7 +411,11 @@ export function OperationsGovernanceWorkspace({
 
               <ComplianceOperations />
 
-              <div className="operations-governance-hub__slot operations-governance-hub__slot--transactions">
+              <div
+                id="workspace-transactions"
+                className="operations-governance-hub__slot operations-governance-hub__slot--transactions workspace-nav-anchor"
+                tabIndex={-1}
+              >
                 {recentTransactions}
               </div>
               </>

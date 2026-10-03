@@ -12297,3 +12297,46 @@ table {
 /* ==========================================================================
    END FINCRIME OVERVIEW IA V3 FINAL CLEANUP
    ========================================================================== */
+
+/* ==========================================================================
+   FINCRIME SIDEBAR NAVIGATION V2
+   ========================================================================== */
+
+.workspace-nav-anchor {
+  scroll-margin-top: 88px;
+  outline: none;
+}
+
+.workspace-nav-anchor:focus-visible {
+  outline:
+    2px solid
+    #7db4ff;
+
+  outline-offset: 4px;
+}
+
+.nav-item {
+  cursor: pointer;
+}
+
+.nav-item:focus-visible {
+  outline:
+    2px solid
+    #7db4ff;
+
+  outline-offset: -2px;
+}
+
+.nav-item.active {
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-nav-anchor {
+    scroll-behavior: auto;
+  }
+}
+
+/* ==========================================================================
+   END FINCRIME SIDEBAR NAVIGATION V2
+   ========================================================================== */

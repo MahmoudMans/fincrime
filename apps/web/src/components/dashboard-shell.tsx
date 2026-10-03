@@ -51,29 +51,37 @@ const navItems = [
   {
     name: "Overview",
     icon: LayoutDashboard,
-    active: true,
+    target: "overview",
   },
   {
     name: "Investigations",
     icon: FileSearch,
+    target: "investigations",
   },
   {
     name: "Network",
     icon: GitBranch,
+    target: "network",
   },
   {
     name: "Transactions",
     icon: CircleDollarSign,
+    target: "transactions",
   },
   {
     name: "Entities",
     icon: Building2,
+    target: "entities",
   },
   {
     name: "Alerts",
     icon: ShieldAlert,
+    target: "alerts",
   },
-];
+] as const;
+
+type NavigationTarget =
+  (typeof navItems)[number]["target"];
 
 import {
   OperationsGovernanceWorkspace,
@@ -118,6 +126,14 @@ export function DashboardShell() {
 
   const [caseActionId, setCaseActionId] =
     useState<string | null>(null);
+
+  const [
+    activeNavigation,
+    setActiveNavigation,
+  ] =
+    useState<NavigationTarget>(
+      "overview"
+    );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -246,6 +262,56 @@ export function DashboardShell() {
     }
   }
 
+  function scrollToWorkspace(
+    elementId: string
+  ) {
+    const target =
+      document.getElementById(
+        elementId
+      );
+
+    if (!target) {
+      return;
+    }
+
+    target.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+
+    window.requestAnimationFrame(() => {
+      target.focus({
+        preventScroll: true,
+      });
+    });
+  }
+
+  function handleWorkspaceNavigation(
+    target: NavigationTarget
+  ) {
+    setActiveNavigation(target);
+
+    if (
+      target === "transactions" ||
+      target === "entities"
+    ) {
+      window.dispatchEvent(
+        new CustomEvent(
+          "fincrime:workspace-navigation",
+          {
+            detail: target,
+          }
+        )
+      );
+
+      return;
+    }
+
+    scrollToWorkspace(
+      `workspace-${target}`
+    );
+  }
+
   const criticalAlerts = useMemo(
     () =>
       overview?.alerts.filter(
@@ -292,20 +358,35 @@ export function DashboardShell() {
           {navItems.map((item) => {
             const Icon = item.icon;
 
+            const isActive =
+              activeNavigation ===
+              item.target;
+
             return (
               <button
                 type="button"
                 className={
-                  item.active
+                  isActive
                     ? "nav-item active"
                     : "nav-item"
                 }
                 key={item.name}
+                aria-current={
+                  isActive
+                    ? "location"
+                    : undefined
+                }
+                title={item.name}
+                onClick={() =>
+                  handleWorkspaceNavigation(
+                    item.target
+                  )
+                }
               >
                 <Icon size={18} />
                 <span>{item.name}</span>
 
-                {item.active && (
+                {isActive && (
                   <span className="active-indicator" />
                 )}
               </button>
@@ -401,7 +482,11 @@ export function DashboardShell() {
         </header>
 
         <div className="dashboard">
-          <section className="page-heading">
+          <section
+            id="workspace-overview"
+            className="page-heading workspace-nav-anchor"
+            tabIndex={-1}
+          >
             <div>
               <div className="eyebrow">
                 Financial intelligence workspace
@@ -502,7 +587,11 @@ export function DashboardShell() {
               <>
                 <Metrics overview={overview} />
 
-                <div className="workspace-grid">
+                <div
+                  id="workspace-network"
+                  className="workspace-grid workspace-nav-anchor"
+                  tabIndex={-1}
+                >
                   <GraphExplorer network={network} />
 
                   <AlertPanel
@@ -646,7 +735,11 @@ function AlertPanel({
   ) => Promise<void>;
 }) {
   return (
-    <section className="panel alerts-panel">
+    <section
+      id="workspace-alerts"
+      className="panel alerts-panel workspace-nav-anchor"
+      tabIndex={-1}
+    >
       <div className="panel-heading">
         <div>
           <div className="eyebrow">
@@ -767,7 +860,11 @@ function InvestigationPanel({
 }) {
   return (
     <>
-    <div className="overview-investigation-cases">
+    <div
+      id="workspace-investigations"
+      className="overview-investigation-cases workspace-nav-anchor"
+      tabIndex={-1}
+    >
   <section className="panel cases-panel">
         <div className="panel-heading">
           <div>
