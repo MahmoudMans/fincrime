@@ -45,6 +45,8 @@ import {
 
 import { useAuth } from "./auth-context";
 import { GraphExplorer } from "./graph-explorer";
+import { GraphInvestigationWorkbench } from "./graph-investigation-workbench";
+import { IntelligenceExplorer } from "./intelligence-explorer";
 import { CaseWorkspace } from "./case-workspace";
 
 const navItems = [
@@ -86,6 +88,71 @@ type NavigationTarget =
 import {
   OperationsGovernanceWorkspace,
 } from "./operations-governance-workspace";
+
+const workspaceContent:
+  Record<
+    NavigationTarget,
+    {
+      eyebrow: string;
+      title: string;
+      description: string;
+    }
+  > = {
+  overview: {
+    eyebrow:
+      "Financial intelligence workspace",
+    title:
+      "Investigation overview",
+    description:
+      "Detect suspicious money movement, investigate connected entities, and manage analyst cases.",
+  },
+
+  investigations: {
+    eyebrow:
+      "Analyst workflow",
+    title:
+      "Investigations",
+    description:
+      "Review active cases, supporting evidence, analyst notes and case decisions.",
+  },
+
+  network: {
+    eyebrow:
+      "Network investigation",
+    title:
+      "Network investigation",
+    description:
+      "Trace money paths, expand connected accounts and inspect circular transaction structures.",
+  },
+
+  transactions: {
+    eyebrow:
+      "Money movement",
+    title:
+      "Transactions",
+    description:
+      "Review transfers across monitored accounts and investigate transaction-level activity.",
+  },
+
+  entities: {
+    eyebrow:
+      "Financial intelligence",
+    title:
+      "Entities",
+    description:
+      "Investigate customers, accounts, counterparties and their connected activity.",
+  },
+
+  alerts: {
+    eyebrow:
+      "Risk queue",
+    title:
+      "Alerts",
+    description:
+      "Review suspicious activity detected across monitored accounts and open investigation cases where required.",
+  },
+};
+
 
 export function DashboardShell() {
   const {
@@ -262,55 +329,25 @@ export function DashboardShell() {
     }
   }
 
-  function scrollToWorkspace(
-    elementId: string
-  ) {
-    const target =
-      document.getElementById(
-        elementId
-      );
-
-    if (!target) {
-      return;
-    }
-
-    target.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-
-    window.requestAnimationFrame(() => {
-      target.focus({
-        preventScroll: true,
-      });
-    });
-  }
-
   function handleWorkspaceNavigation(
     target: NavigationTarget
   ) {
-    setActiveNavigation(target);
-
-    if (
-      target === "network" ||
-      target === "transactions" ||
-      target === "entities"
-    ) {
-      window.dispatchEvent(
-        new CustomEvent(
-          "fincrime:workspace-navigation",
-          {
-            detail: target,
-          }
-        )
-      );
-
-      return;
-    }
-
-    scrollToWorkspace(
-      `workspace-${target}`
+    setActiveNavigation(
+      target
     );
+
+    const reduceMotion =
+      window.matchMedia(
+        "(prefers-reduced-motion: reduce)"
+      ).matches;
+
+    window.scrollTo({
+      top: 0,
+      behavior:
+        reduceMotion
+          ? "auto"
+          : "smooth",
+    });
   }
 
   const criticalAlerts = useMemo(
@@ -338,6 +375,11 @@ export function DashboardShell() {
     detectionRuns.length > 0
       ? detectionRuns[0]
       : null;
+
+  const workspaceDefinition =
+    workspaceContent[
+      activeNavigation
+    ];
 
   return (
     <div className="app-shell">
@@ -484,62 +526,79 @@ export function DashboardShell() {
 
         <div className="dashboard">
           <section
-            id="workspace-overview"
-            className="page-heading workspace-nav-anchor"
-            tabIndex={-1}
+            className="page-heading workspace-page-heading"
           >
             <div>
               <div className="eyebrow">
-                Financial intelligence workspace
+                {
+                  workspaceDefinition
+                    .eyebrow
+                }
               </div>
 
-              <h1>Investigation overview</h1>
+              <h1>
+                {
+                  workspaceDefinition
+                    .title
+                }
+              </h1>
 
               <p>
-                Detect suspicious money movement,
-                investigate connected entities, and
-                manage analyst cases.
+                {
+                  workspaceDefinition
+                    .description
+                }
               </p>
             </div>
 
-            <div className="page-actions">
-              {latestRun && (
-                <div className="detection-pill">
-                  <Radar size={14} />
+            {activeNavigation ===
+              "overview" && (
+              <div className="page-actions">
+                {latestRun && (
+                  <div className="detection-pill">
+                    <Radar size={14} />
 
-                  <span>
-                    {latestRun.candidatesFound} signals
-                  </span>
+                    <span>
+                      {
+                        latestRun
+                          .candidatesFound
+                      }{" "}
+                      signals
+                    </span>
 
-                  <small>
-                    {latestRun.status}
-                  </small>
-                </div>
-              )}
+                    <small>
+                      {
+                        latestRun
+                          .status
+                      }
+                    </small>
+                  </div>
+                )}
 
-              <button
-                className="primary-button"
-                type="button"
-                disabled={
-                  detecting ||
-                  !canRunDetection
-                }
-                title={
-                  canRunDetection
-                    ? "Run AML detection"
-                    : "Senior Analyst or Administrator required"
-                }
-                onClick={() =>
-                  void handleRunDetection()
-                }
-              >
-                <Play size={16} />
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={
+                    detecting ||
+                    !canRunDetection
+                  }
+                  title={
+                    canRunDetection
+                      ? "Run AML detection"
+                      : "Senior Analyst or Administrator required"
+                  }
+                  onClick={() =>
+                    void handleRunDetection()
+                  }
+                >
+                  <Play size={16} />
 
-                {detecting
-                  ? "Scanning..."
-                  : "Run AML detection"}
-              </button>
-            </div>
+                  {detecting
+                    ? "Scanning..."
+                    : "Run AML detection"}
+                </button>
+              </div>
+            )}
           </section>
 
           {actionError && (
@@ -586,61 +645,130 @@ export function DashboardShell() {
             overview &&
             network && (
               <>
-                <Metrics overview={overview} />
+                {activeNavigation ===
+                  "overview" && (
+                  <div className="workspace-view workspace-view-overview">
+                    <Metrics
+                      overview={overview}
+                    />
 
-                <div className="workspace-grid">
-                  <GraphExplorer network={network} />
+                    <div className="workspace-grid">
+                      <GraphExplorer
+                        network={network}
+                      />
 
-                  <AlertPanel
-                    alerts={overview.alerts}
-                    caseAlertIds={caseAlertIds}
-                    busyAlertId={caseActionId}
-                    onOpenCase={handleOpenCase}
-                  />
-                </div>
+                      <AlertPanel
+                        alerts={
+                          overview.alerts.slice(
+                            0,
+                            3
+                          )
+                        }
+                        caseAlertIds={
+                          caseAlertIds
+                        }
+                        busyAlertId={
+                          caseActionId
+                        }
+                        onOpenCase={
+                          handleOpenCase
+                        }
+                      />
+                    </div>
 
+                    <InvestigationPanel
+                      cases={cases}
+                      latestRun={
+                        latestRun
+                      }
+                      busyCaseId={
+                        caseActionId
+                      }
+                      onAdvance={
+                        handleAdvanceCase
+                      }
+                      transactions={
+                        overview
+                          .recentTransactions
+                      }
+                    />
+                  </div>
+                )}
 
+                {activeNavigation ===
+                  "investigations" && (
+                  <div className="workspace-view workspace-view-investigations">
+                    <InvestigationPanel
+                      cases={cases}
+                      latestRun={
+                        latestRun
+                      }
+                      busyCaseId={
+                        caseActionId
+                      }
+                      onAdvance={
+                        handleAdvanceCase
+                      }
+                      transactions={
+                        overview
+                          .recentTransactions
+                      }
+                    />
 
+                    <CaseWorkspace
+                      cases={cases}
+                    />
+                  </div>
+                )}
 
+                {activeNavigation ===
+                  "network" && (
+                  <div className="workspace-view workspace-view-network">
+                    <GraphInvestigationWorkbench />
+                  </div>
+                )}
 
+                {activeNavigation ===
+                  "transactions" && (
+                  <div className="workspace-view workspace-view-transactions">
+                    <TransactionTable
+                      transactions={
+                        overview
+                          .recentTransactions
+                      }
+                    />
+                  </div>
+                )}
 
+                {activeNavigation ===
+                  "entities" && (
+                  <div className="workspace-view workspace-view-entities">
+                    <IntelligenceExplorer />
+                  </div>
+                )}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                <InvestigationPanel
-                  cases={cases}
-                  latestRun={latestRun}
-                  busyCaseId={caseActionId}
-                  onAdvance={handleAdvanceCase}
-                  transactions={overview.recentTransactions}
-                />
-
-
-
-
-
+                {activeNavigation ===
+                  "alerts" && (
+                  <div className="workspace-view workspace-view-alerts">
+                    <AlertPanel
+                      alerts={
+                        overview.alerts
+                      }
+                      caseAlertIds={
+                        caseAlertIds
+                      }
+                      busyAlertId={
+                        caseActionId
+                      }
+                      onOpenCase={
+                        handleOpenCase
+                      }
+                    />
+                  </div>
+                )}
               </>
             )}
+
         </div>
       </main>
     </div>

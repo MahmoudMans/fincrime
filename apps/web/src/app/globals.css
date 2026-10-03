@@ -12340,3 +12340,185 @@ table {
 /* ==========================================================================
    END FINCRIME SIDEBAR NAVIGATION V2
    ========================================================================== */
+
+/* ==========================================================================
+   FINCRIME TRUE WORKSPACE ARCHITECTURE V1
+   ========================================================================== */
+
+/*
+ * The sidebar now chooses one top-level application workspace.
+ * The page no longer relies on scrolling through unrelated tools.
+ */
+
+.workspace-view {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 16px;
+}
+
+.workspace-page-heading {
+  scroll-margin-top: 0;
+}
+
+
+/* --------------------------------------------------------------------------
+   OVERVIEW
+   -------------------------------------------------------------------------- */
+
+.workspace-view-overview {
+  align-content: start;
+}
+
+.workspace-view-overview
+.overview-investigation-cases {
+  margin-top: 0;
+}
+
+/*
+ * Network, entities, the transaction ledger, and the detailed case evidence
+ * workspace now have explicit top-level destinations. Keep them out of the
+ * Overview Operations hub if that hub is manually expanded.
+ */
+
+.workspace-view-overview
+.operations-governance-hub
+.operations-governance-hub__slot--case,
+
+.workspace-view-overview
+.operations-governance-hub
+#workspace-network,
+
+.workspace-view-overview
+.operations-governance-hub
+#workspace-entities,
+
+.workspace-view-overview
+.operations-governance-hub
+#workspace-transactions {
+  display: none !important;
+}
+
+
+/* --------------------------------------------------------------------------
+   INVESTIGATIONS
+   -------------------------------------------------------------------------- */
+
+.workspace-view-investigations
+.operations-governance-hub {
+  display: none !important;
+}
+
+.workspace-view-investigations
+.overview-investigation-cases {
+  margin-top: 0;
+}
+
+
+/* --------------------------------------------------------------------------
+   NETWORK
+   -------------------------------------------------------------------------- */
+
+.workspace-view-network {
+  min-height: 0;
+}
+
+.workspace-view-network
+> * {
+  min-width: 0;
+
+  width: 100%;
+}
+
+
+/* --------------------------------------------------------------------------
+   TRANSACTIONS
+   -------------------------------------------------------------------------- */
+
+.workspace-view-transactions
+.transactions-panel {
+  margin-top: 0;
+
+  width: 100%;
+}
+
+.workspace-view-transactions
+.table-scroll {
+  max-height: none;
+
+  overflow-x: auto;
+}
+
+
+/* --------------------------------------------------------------------------
+   ENTITIES
+   -------------------------------------------------------------------------- */
+
+.workspace-view-entities {
+  min-width: 0;
+}
+
+.workspace-view-entities
+> * {
+  min-width: 0;
+
+  width: 100%;
+}
+
+
+/* --------------------------------------------------------------------------
+   ALERTS
+   -------------------------------------------------------------------------- */
+
+.workspace-view-alerts
+.alerts-panel {
+  width: 100%;
+
+  min-height: 0;
+
+  height: auto;
+}
+
+.workspace-view-alerts
+.alert-list {
+  max-height: none !important;
+
+  overflow: visible !important;
+}
+
+.workspace-view-alerts
+.alert-item {
+  min-height: 0;
+}
+
+
+/* --------------------------------------------------------------------------
+   ACTIVE WORKSPACE NAVIGATION
+   -------------------------------------------------------------------------- */
+
+.sidebar-nav
+.nav-item {
+  cursor: pointer;
+}
+
+.sidebar-nav
+.nav-item.active {
+  cursor: default;
+}
+
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 850px) {
+  .workspace-view {
+    gap: 14px;
+  }
+}
+
+
+/* ==========================================================================
+   END FINCRIME TRUE WORKSPACE ARCHITECTURE V1
+   ========================================================================== */
