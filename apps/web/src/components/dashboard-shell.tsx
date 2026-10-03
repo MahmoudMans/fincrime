@@ -292,6 +292,7 @@ export function DashboardShell() {
     setActiveNavigation(target);
 
     if (
+      target === "network" ||
       target === "transactions" ||
       target === "entities"
     ) {
@@ -587,11 +588,7 @@ export function DashboardShell() {
               <>
                 <Metrics overview={overview} />
 
-                <div
-                  id="workspace-network"
-                  className="workspace-grid workspace-nav-anchor"
-                  tabIndex={-1}
-                >
+                <div className="workspace-grid">
                   <GraphExplorer network={network} />
 
                   <AlertPanel

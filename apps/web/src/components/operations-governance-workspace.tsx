@@ -110,6 +110,7 @@ export function OperationsGovernanceWorkspace({
         navigationEvent.detail;
 
       if (
+        target !== "network" &&
         target !== "transactions" &&
         target !== "entities"
       ) {
@@ -401,7 +402,13 @@ export function OperationsGovernanceWorkspace({
                 <IntelligenceExplorer />
               </div>
 
-              <GraphInvestigationWorkbench />
+              <div
+                id="workspace-network"
+                className="operations-governance-hub__slot workspace-nav-anchor"
+                tabIndex={-1}
+              >
+                <GraphInvestigationWorkbench />
+              </div>
 
               <InvestigationTriage />
 
