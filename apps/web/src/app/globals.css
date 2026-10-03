@@ -12960,3 +12960,211 @@ small {
 /* ==========================================================================
    END FINCRIME INVESTIGATIONS UX POLISH V1
    ========================================================================== */
+
+/* ==========================================================================
+   FINCRIME NETWORK STATE POLISH V2
+   ========================================================================== */
+
+/*
+ * THREE-STATE CONTRACT
+ *
+ * EMPTY:
+ *   compact guided result surface
+ *   inspector owns no width
+ *
+ * RESULT WITHOUT ACCOUNT SELECTION:
+ *   full-width graph
+ *   inspector owns no width
+ *
+ * RESULT WITH ACCOUNT SELECTION:
+ *   original graph + inspector layout
+ */
+
+
+/* --------------------------------------------------------------------------
+   EMPTY + FULL-WIDTH RESULT STATES
+   -------------------------------------------------------------------------- */
+
+.workspace-view-network
+.investigation-result-empty-state,
+
+.workspace-view-network
+.investigation-result-full-width {
+  grid-template-columns:
+    minmax(
+      0,
+      1fr
+    ) !important;
+
+  min-height: 0 !important;
+
+  height: auto !important;
+}
+
+
+/*
+ * The inspector remains part of the component source and therefore its
+ * functionality is preserved. It simply does not participate in layout
+ * until a graph account has been selected.
+ */
+
+.workspace-view-network
+.investigation-result-empty-state
+.investigation-inspector,
+
+.workspace-view-network
+.investigation-result-full-width
+.investigation-inspector {
+  display: none !important;
+}
+
+
+/* --------------------------------------------------------------------------
+   EMPTY RESULT — INTRINSIC COMPACT CANVAS
+   -------------------------------------------------------------------------- */
+
+.workspace-view-network
+.investigation-result-empty-state
+.investigation-result-main {
+  min-width: 0;
+
+  min-height: 0 !important;
+}
+
+
+.workspace-view-network
+.investigation-graph-canvas-empty {
+  min-height: 0 !important;
+
+  height: auto !important;
+
+  display: grid !important;
+}
+
+
+/*
+ * Existing placeholder positioning is intentionally overridden only for the
+ * pre-result state so its own content establishes the required height.
+ */
+
+.workspace-view-network
+.investigation-graph-canvas-empty
+.investigation-graph-placeholder {
+  position: static !important;
+
+  inset: auto !important;
+
+  width: 100%;
+
+  min-height: 180px;
+
+  box-sizing: border-box;
+
+  padding:
+    34px
+    24px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 8px;
+
+  text-align: center;
+}
+
+
+.workspace-view-network
+.investigation-graph-canvas-empty
+.investigation-graph-placeholder
+span {
+  max-width: 540px;
+
+  line-height: 1.5;
+}
+
+
+/* --------------------------------------------------------------------------
+   REAL RESULT / NO SELECTED ACCOUNT
+   -------------------------------------------------------------------------- */
+
+/*
+ * Preserve the existing real graph height once a result exists. Only the
+ * unused inspector column disappears.
+ */
+
+.workspace-view-network
+.investigation-result-full-width
+.investigation-result-main,
+
+.workspace-view-network
+.investigation-result-full-width
+.investigation-graph-canvas {
+  width: 100%;
+
+  min-width: 0;
+}
+
+
+/* --------------------------------------------------------------------------
+   SELECTED ACCOUNT
+   -------------------------------------------------------------------------- */
+
+/*
+ * No grid or inspector sizing override is applied to
+ * .investigation-result-with-inspector.
+ *
+ * The original Graph Investigation Workbench layout remains authoritative.
+ */
+
+
+/* --------------------------------------------------------------------------
+   SHORT VIEWPORTS
+   -------------------------------------------------------------------------- */
+
+@media (max-height: 760px) {
+  .workspace-view-network
+  .investigation-graph-canvas-empty
+  .investigation-graph-placeholder {
+    min-height: 150px;
+
+    padding:
+      26px
+      20px;
+  }
+}
+
+
+/* --------------------------------------------------------------------------
+   NARROW WIDTHS
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 850px) {
+  .workspace-view-network
+  .investigation-result {
+    grid-template-columns:
+      minmax(
+        0,
+        1fr
+      ) !important;
+  }
+
+  .workspace-view-network
+  .investigation-graph-canvas-empty
+  .investigation-graph-placeholder {
+    min-height: 160px;
+
+    padding:
+      28px
+      18px;
+  }
+}
+
+
+/* ==========================================================================
+   END FINCRIME NETWORK STATE POLISH V2
+   ========================================================================== */

@@ -649,7 +649,16 @@ export function GraphInvestigationWorkbench() {
         </div>
       )}
 
-      <div className="investigation-result">
+      <div
+        className={
+          !result ||
+          result.nodes.length === 0
+            ? "investigation-result investigation-result-empty-state"
+            : visibleSelectedNode
+              ? "investigation-result investigation-result-with-inspector"
+              : "investigation-result investigation-result-full-width"
+        }
+      >
         <div className="investigation-result-main">
           <div className="investigation-result-heading">
             <div>
@@ -715,7 +724,12 @@ export function GraphInvestigationWorkbench() {
 
           <div
             ref={graphContainerRef}
-            className="investigation-graph-canvas"
+            className={
+              !result ||
+              result.nodes.length === 0
+                ? "investigation-graph-canvas investigation-graph-canvas-empty"
+                : "investigation-graph-canvas"
+            }
           >
             {(!result ||
               result.nodes.length ===
@@ -729,8 +743,9 @@ export function GraphInvestigationWorkbench() {
                   </strong>
 
                   <span>
-                    Select an investigation
-                    operation above.
+                    Find a money path, expand an account
+                    neighborhood, or identify circular flows
+                    using the controls above.
                   </span>
                 </div>
               )}
