@@ -10519,3 +10519,1028 @@ tbody tr:hover {
       1px solid var(--border-soft);
   }
 }
+
+/* ==========================================================================
+   FINCRIME AUTH REDESIGN V4 — EXACT SOURCE IMPLEMENTATION
+   ========================================================================== */
+
+.login-screen {
+  --fc-auth-canvas-deep: #07101b;
+  --fc-auth-canvas-hero: #0c192f;
+  --fc-auth-surface: #101d2b;
+  --fc-auth-field: #0f1926;
+  --fc-auth-hover: #14263a;
+
+  --fc-auth-border: #203a55;
+  --fc-auth-border-strong: #36577a;
+
+  --fc-auth-text: #f4f7ff;
+  --fc-auth-secondary: #b8c7da;
+  --fc-auth-muted: #8fa3bb;
+
+  --fc-auth-primary: #2f6fef;
+  --fc-auth-primary-hover: #2563eb;
+  --fc-auth-focus: #7db4ff;
+
+  width: 100%;
+  height: 100svh;
+  min-height: 100svh;
+
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1.08fr)
+    minmax(31rem, 0.92fr);
+
+  overflow: hidden;
+
+  color:
+    var(--fc-auth-text);
+
+  background:
+    var(--fc-auth-canvas-deep);
+}
+
+
+.login-screen .login-hero {
+  position: relative;
+
+  isolation: isolate;
+
+  min-width: 0;
+  min-height: 100svh;
+
+  padding:
+    clamp(2.75rem, 4vw, 4.75rem)
+    clamp(2.75rem, 4.5vw, 5.25rem);
+
+  display: grid;
+
+  grid-template-rows:
+    auto
+    1fr;
+
+  overflow: hidden;
+
+  border-right:
+    1px solid
+    rgba(125, 180, 255, 0.11);
+
+  background:
+    radial-gradient(
+      circle at 76% 76%,
+      rgba(47, 111, 239, 0.08),
+      transparent 35%
+    ),
+    linear-gradient(
+      145deg,
+      #0c192f 0%,
+      #09172a 50%,
+      #081321 100%
+    );
+}
+
+
+.login-screen .login-hero::after {
+  content: "";
+
+  position: absolute;
+
+  z-index: -1;
+
+  right: -17%;
+  bottom: -27%;
+
+  width:
+    min(
+      48vw,
+      45rem
+    );
+
+  aspect-ratio: 1;
+
+  border:
+    1px solid
+    rgba(84, 137, 227, 0.14);
+
+  border-radius: 50%;
+
+  box-shadow:
+    0 0 0 5.2rem
+    rgba(26, 66, 129, 0.035);
+
+  pointer-events: none;
+}
+
+
+.login-screen .login-brand {
+  position: relative;
+
+  z-index: 2;
+}
+
+
+.login-screen .login-brand strong {
+  color:
+    var(--fc-auth-text);
+}
+
+
+.login-screen .login-brand span {
+  color:
+    var(--fc-auth-muted);
+}
+
+
+.login-screen .login-hero-copy {
+  position: relative;
+
+  z-index: 2;
+
+  align-self: center;
+
+  max-width: 48rem;
+
+  padding:
+    clamp(3.75rem, 9vh, 7rem)
+    0
+    clamp(3rem, 7vh, 5rem);
+}
+
+
+.login-screen .login-hero-copy > .eyebrow {
+  margin-bottom: 1.35rem;
+
+  color:
+    var(--fc-auth-focus);
+
+  font-size: 0.72rem;
+
+  font-weight: 720;
+
+  letter-spacing: 0.14em;
+
+  text-transform: uppercase;
+}
+
+
+.login-screen .login-hero-copy h1 {
+  max-width: 12.8ch;
+
+  margin:
+    0
+    0
+    1.5rem;
+
+  color:
+    var(--fc-auth-text);
+
+  font-size:
+    clamp(
+      3rem,
+      4vw,
+      4rem
+    );
+
+  font-weight: 690;
+
+  line-height: 0.99;
+
+  letter-spacing: -0.045em;
+
+  text-wrap: balance;
+}
+
+
+.login-screen .login-hero-copy > p {
+  max-width: 43rem;
+
+  margin:
+    0
+    0
+    1.7rem;
+
+  color:
+    var(--fc-auth-secondary);
+
+  font-size:
+    clamp(
+      0.95rem,
+      1vw,
+      1.05rem
+    );
+
+  line-height: 1.72;
+}
+
+
+.login-screen .login-capabilities {
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 0.625rem;
+
+  margin-top: 1.75rem;
+}
+
+
+.login-screen .login-capabilities > span {
+  min-height: 2.5rem;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 0.55rem;
+
+  padding:
+    0.62rem
+    0.9rem;
+
+  border:
+    1px solid
+    rgba(125, 180, 255, 0.18);
+
+  border-radius: 0.7rem;
+
+  color:
+    var(--fc-auth-secondary);
+
+  background:
+    rgba(11, 28, 49, 0.58);
+
+  box-shadow:
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.025);
+
+  font-size: 0.78rem;
+
+  line-height: 1.15;
+}
+
+
+.login-screen .login-capabilities svg {
+  color:
+    var(--fc-auth-focus);
+}
+
+
+.login-screen .login-panel {
+  min-width: 0;
+  min-height: 100svh;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding:
+    clamp(2rem, 4vw, 5rem);
+
+  overflow-y: auto;
+
+  background:
+    radial-gradient(
+      circle at 48% 52%,
+      rgba(47, 111, 239, 0.055),
+      transparent 38%
+    ),
+    var(--fc-auth-canvas-deep);
+}
+
+
+.login-screen .login-card {
+  width:
+    min(
+      100%,
+      35rem
+    );
+
+  margin:
+    auto
+    0;
+
+  padding:
+    clamp(
+      2rem,
+      3vw,
+      2.5rem
+    );
+
+  border:
+    1px solid
+    var(--fc-auth-border);
+
+  border-radius: 1.25rem;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(18, 33, 49, 0.99),
+      rgba(14, 28, 42, 0.99)
+    );
+
+  box-shadow:
+    0 2rem 5rem
+    rgba(0, 0, 0, 0.27),
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.025);
+}
+
+
+.login-screen .login-card-icon {
+  width: 3rem;
+  height: 3rem;
+
+  margin-bottom: 1.15rem;
+
+  display: grid;
+
+  place-items: center;
+
+  border:
+    1px solid
+    rgba(125, 180, 255, 0.13);
+
+  border-radius: 0.8rem;
+
+  color:
+    var(--fc-auth-focus);
+
+  background:
+    rgba(47, 111, 239, 0.14);
+}
+
+
+.login-screen .login-card > .eyebrow {
+  margin-bottom: 0.6rem;
+
+  color:
+    var(--fc-auth-focus);
+
+  font-size: 0.7rem;
+
+  font-weight: 720;
+
+  letter-spacing: 0.12em;
+
+  text-transform: uppercase;
+}
+
+
+.login-screen .login-card h2 {
+  margin:
+    0
+    0
+    0.65rem;
+
+  color:
+    var(--fc-auth-text);
+
+  font-size:
+    clamp(
+      1.65rem,
+      2vw,
+      1.9rem
+    );
+
+  font-weight: 690;
+
+  line-height: 1.12;
+
+  letter-spacing: -0.035em;
+}
+
+
+.login-screen .login-card > p:not(.demo-account-help) {
+  max-width: 31rem;
+
+  margin:
+    0;
+
+  color:
+    var(--fc-auth-secondary);
+
+  font-size: 0.9rem;
+
+  line-height: 1.6;
+}
+
+
+.login-screen .demo-account-heading {
+  margin-top: 1.7rem;
+
+  color:
+    var(--fc-auth-muted);
+
+  font-size: 0.7rem;
+
+  font-weight: 720;
+
+  line-height: 1.2;
+
+  letter-spacing: 0.12em;
+
+  text-transform: uppercase;
+}
+
+
+.login-screen .demo-account-help {
+  margin:
+    0.45rem
+    0
+    0.85rem;
+
+  color:
+    var(--fc-auth-muted);
+
+  font-size: 0.76rem;
+
+  line-height: 1.5;
+}
+
+
+.login-screen .demo-account-list {
+  display: grid;
+
+  gap: 0.55rem;
+
+  margin-bottom: 1.5rem;
+}
+
+
+.login-screen .demo-account {
+  position: relative;
+
+  width: 100%;
+  min-height: 4.4rem;
+
+  display: flex;
+
+  align-items: flex-start;
+
+  gap: 0.85rem;
+
+  padding:
+    0.9rem
+    1rem;
+
+  border:
+    1px solid
+    var(--fc-auth-border);
+
+  border-radius: 0.72rem;
+
+  color:
+    var(--fc-auth-secondary);
+
+  background:
+    var(--fc-auth-field);
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+
+.login-screen .demo-account:hover {
+  border-color:
+    var(--fc-auth-border-strong);
+
+  background:
+    var(--fc-auth-hover);
+}
+
+
+.login-screen .demo-account:focus-visible {
+  outline:
+    2px solid
+    var(--fc-auth-focus);
+
+  outline-offset: 3px;
+}
+
+
+.login-screen .demo-account > svg {
+  flex: 0 0 auto;
+
+  margin-top: 0.13rem;
+
+  color:
+    var(--fc-auth-muted);
+}
+
+
+.login-screen .demo-account > div {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 0.25rem;
+}
+
+
+.login-screen .demo-account strong {
+  color:
+    var(--fc-auth-text);
+
+  font-size: 0.84rem;
+
+  font-weight: 690;
+
+  line-height: 1.25;
+}
+
+
+.login-screen .demo-account span {
+  color:
+    var(--fc-auth-muted);
+
+  font-size: 0.73rem;
+
+  line-height: 1.42;
+}
+
+
+.login-screen .demo-account.selected {
+  padding-right: 6.6rem;
+
+  border-color:
+    rgba(72, 139, 255, 0.78);
+
+  background:
+    rgba(47, 111, 239, 0.13);
+
+  box-shadow:
+    inset 0 0 0 1px
+    rgba(72, 139, 255, 0.08);
+}
+
+
+.login-screen .demo-account.selected::after {
+  content: "✓ Selected";
+
+  position: absolute;
+
+  top: 0.85rem;
+  right: 0.9rem;
+
+  padding:
+    0.3rem
+    0.5rem;
+
+  border:
+    1px solid
+    rgba(125, 180, 255, 0.22);
+
+  border-radius: 999px;
+
+  color:
+    var(--fc-auth-focus);
+
+  background:
+    rgba(47, 111, 239, 0.12);
+
+  font-size: 0.65rem;
+
+  font-weight: 750;
+
+  line-height: 1;
+
+  letter-spacing: 0.025em;
+}
+
+
+.login-screen .demo-account.selected > svg {
+  color:
+    var(--fc-auth-focus);
+}
+
+
+.login-screen .login-error {
+  margin:
+    0
+    0
+    1rem;
+
+  padding:
+    0.8rem
+    0.9rem;
+
+  border:
+    1px solid
+    rgba(255, 138, 138, 0.32);
+
+  border-radius: 0.65rem;
+
+  color: #ffd0d0;
+
+  background:
+    rgba(129, 35, 44, 0.16);
+
+  font-size: 0.82rem;
+
+  line-height: 1.5;
+}
+
+
+.login-screen .login-field {
+  display: grid;
+
+  gap: 0.5rem;
+
+  margin:
+    0
+    0
+    1rem;
+}
+
+
+.login-screen .login-field > span {
+  color:
+    var(--fc-auth-muted);
+
+  font-size: 0.7rem;
+
+  font-weight: 720;
+
+  line-height: 1.2;
+
+  letter-spacing: 0.09em;
+
+  text-transform: uppercase;
+}
+
+
+.login-screen .login-field input {
+  width: 100%;
+  min-height: 3.25rem;
+
+  padding:
+    0
+    0.95rem;
+
+  border:
+    1px solid
+    var(--fc-auth-border);
+
+  border-radius: 0.7rem;
+
+  color:
+    var(--fc-auth-text);
+
+  background:
+    var(--fc-auth-field);
+
+  font: inherit;
+
+  font-size: 0.9rem;
+
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+
+.login-screen .login-field input:hover {
+  border-color:
+    var(--fc-auth-border-strong);
+}
+
+
+.login-screen .login-field input:focus {
+  outline: none;
+
+  border-color:
+    var(--fc-auth-focus);
+
+  background: #111e2d;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(125, 180, 255, 0.12);
+}
+
+
+.login-screen .login-field input::placeholder {
+  color: #667b93;
+}
+
+
+.login-screen .login-submit {
+  width: 100%;
+  min-height: 3.25rem;
+
+  margin-top: 0.25rem;
+
+  border:
+    1px solid
+    rgba(125, 180, 255, 0.23);
+
+  border-radius: 0.72rem;
+
+  color: #ffffff;
+
+  background:
+    var(--fc-auth-primary);
+
+  box-shadow:
+    0 0.65rem 1.5rem
+    rgba(47, 111, 239, 0.18);
+
+  font-weight: 690;
+
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+
+.login-screen .login-submit:hover:not(:disabled) {
+  border-color:
+    rgba(125, 180, 255, 0.42);
+
+  background:
+    var(--fc-auth-primary-hover);
+
+  box-shadow:
+    0 0.75rem 1.75rem
+    rgba(47, 111, 239, 0.24);
+
+  transform:
+    translateY(-1px);
+}
+
+
+.login-screen .login-submit:focus-visible {
+  outline:
+    2px solid
+    var(--fc-auth-focus);
+
+  outline-offset: 3px;
+}
+
+
+.login-screen .login-submit:disabled {
+  cursor: wait;
+
+  opacity: 0.72;
+
+  transform: none;
+}
+
+
+.login-screen .login-security-note {
+  margin-top: 1.5rem;
+
+  padding-top: 1.15rem;
+
+  display: flex;
+
+  align-items: flex-start;
+
+  gap: 0.65rem;
+
+  border-top:
+    1px solid
+    rgba(125, 180, 255, 0.11);
+
+  color:
+    var(--fc-auth-muted);
+}
+
+
+.login-screen .login-security-note > svg {
+  flex: 0 0 auto;
+
+  margin-top: 0.1rem;
+
+  color: #5ac6b7;
+}
+
+
+.login-screen .login-security-note > div {
+  display: grid;
+
+  gap: 0.2rem;
+}
+
+
+.login-screen .login-security-note strong {
+  color:
+    var(--fc-auth-secondary);
+
+  font-size: 0.74rem;
+
+  font-weight: 680;
+
+  line-height: 1.35;
+}
+
+
+.login-screen .login-security-note span {
+  color:
+    var(--fc-auth-muted);
+
+  font-size: 0.72rem;
+
+  line-height: 1.5;
+}
+
+
+/* --------------------------------------------------------------------------
+   Compact desktop / tablet
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 980px) {
+  .login-screen {
+    height: auto;
+
+    min-height: 100svh;
+
+    grid-template-columns: 1fr;
+
+    overflow: visible;
+  }
+
+
+  .login-screen .login-hero {
+    min-height: auto;
+
+    padding:
+      2rem
+      clamp(1.5rem, 5vw, 3rem);
+
+    border-right: 0;
+
+    border-bottom:
+      1px solid
+      rgba(125, 180, 255, 0.11);
+  }
+
+
+  .login-screen .login-hero-copy {
+    padding:
+      clamp(3rem, 8vh, 5rem)
+      0
+      2rem;
+  }
+
+
+  .login-screen .login-hero-copy h1 {
+    max-width: 13ch;
+
+    font-size:
+      clamp(
+        2.75rem,
+        7vw,
+        3.8rem
+      );
+  }
+
+
+  .login-screen .login-panel {
+    min-height: auto;
+
+    padding:
+      clamp(2rem, 6vw, 4rem)
+      clamp(1.5rem, 5vw, 3rem)
+      4rem;
+
+    overflow: visible;
+  }
+
+
+  .login-screen .login-card {
+    width:
+      min(
+        100%,
+        39rem
+      );
+  }
+}
+
+
+/* --------------------------------------------------------------------------
+   Mobile
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .login-screen .login-hero {
+    padding:
+      1.35rem
+      1.25rem
+      1.45rem;
+  }
+
+
+  .login-screen .login-hero-copy {
+    padding:
+      2.35rem
+      0
+      0.45rem;
+  }
+
+
+  .login-screen .login-hero-copy h1 {
+    margin-bottom: 1rem;
+
+    font-size:
+      clamp(
+        2.25rem,
+        11vw,
+        3rem
+      );
+
+    line-height: 1.02;
+  }
+
+
+  .login-screen .login-hero-copy > p {
+    font-size: 0.92rem;
+
+    line-height: 1.6;
+  }
+
+
+  .login-screen .login-capabilities {
+    display: none;
+  }
+
+
+  .login-screen .login-panel {
+    padding:
+      1.25rem
+      1rem
+      2.5rem;
+  }
+
+
+  .login-screen .login-card {
+    width: 100%;
+
+    padding: 1.5rem;
+
+    border-radius: 1rem;
+  }
+
+
+  .login-screen .demo-account {
+    min-height: 4.4rem;
+  }
+
+
+  .login-screen .demo-account.selected {
+    padding-right: 1rem;
+  }
+
+
+  .login-screen .demo-account.selected::after {
+    content: "✓";
+
+    top: 0.8rem;
+    right: 0.8rem;
+
+    width: 1.45rem;
+    height: 1.45rem;
+
+    padding: 0;
+
+    display: grid;
+
+    place-items: center;
+  }
+}
+
+
+/* --------------------------------------------------------------------------
+   Reduced motion
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .login-screen .demo-account,
+  .login-screen .login-field input,
+  .login-screen .login-submit {
+    transition: none;
+  }
+
+
+  .login-screen .login-submit:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   END FINCRIME AUTH REDESIGN V4
+   ========================================================================== */

@@ -18,7 +18,6 @@ import {
   setApiAccessToken,
   type AuthLoginResponse,
 } from "@/lib/api";
-
 import {
   AuthProvider,
 } from "./auth-context";
@@ -35,7 +34,7 @@ const demoAccounts = [
     role:
       "AML Analyst",
     description:
-      "Investigate alerts, entities and evidence.",
+      "Investigate alerts, entities, evidence and case findings.",
   },
   {
     username:
@@ -45,7 +44,7 @@ const demoAccounts = [
     role:
       "Senior Analyst",
     description:
-      "Includes detection runs, assignment and case resolution.",
+      "Run detections, assign investigations and review case decisions.",
   },
   {
     username:
@@ -55,7 +54,7 @@ const demoAccounts = [
     role:
       "Administrator",
     description:
-      "Full access plus security audit visibility.",
+      "Manage governed releases and access security audit controls.",
   },
 ];
 
@@ -183,28 +182,28 @@ export function AuthShell() {
           </h1>
 
           <p>
-            A graph-native financial
-            crime investigation platform
-            for detecting suspicious
-            money movement, analyzing
-            connected entities and
-            managing auditable AML cases.
+            Investigate suspicious money
+            movement across connected
+            entities, review supporting
+            evidence, and manage auditable
+            AML cases from a single
+            graph-native workspace.
           </p>
 
           <div className="login-capabilities">
             <span>
               <Fingerprint size={15} />
-              JWT authentication
+              Graph investigations
             </span>
 
             <span>
               <ShieldCheck size={15} />
-              Role-based authorization
+              Evidence governance
             </span>
 
             <span>
               <Network size={15} />
-              Neo4j investigations
+              Auditable case decisions
             </span>
           </div>
         </div>
@@ -213,6 +212,7 @@ export function AuthShell() {
       <section className="login-panel">
         <form
           className="login-card"
+          aria-busy={busy}
           onSubmit={(event) =>
             void login(event)
           }
@@ -222,7 +222,7 @@ export function AuthShell() {
           </div>
 
           <div className="eyebrow">
-            Analyst authentication
+            Secure workspace access
           </div>
 
           <h2>
@@ -230,13 +230,74 @@ export function AuthShell() {
           </h2>
 
           <p>
-            Choose one of the local demo
-            identities or enter its
-            credentials manually.
+            Choose a local demo identity
+            or enter credentials manually.
           </p>
 
+          <div className="demo-account-heading">
+            Demo identity
+          </div>
+
+          <p className="demo-account-help">
+            Selecting a demo identity fills
+            the local credentials below.
+          </p>
+
+          <div
+            className="demo-account-list"
+            role="group"
+            aria-label="Demo identity"
+          >
+            {demoAccounts.map(
+              (account) => (
+                <button
+                  key={
+                    account.username
+                  }
+                  type="button"
+                  aria-pressed={
+                    username ===
+                    account.username
+                  }
+                  className={
+                    username ===
+                    account.username
+                      ? "demo-account selected"
+                      : "demo-account"
+                  }
+                  onClick={() =>
+                    chooseAccount(
+                      account
+                    )
+                  }
+                >
+                  <UserRoundCheck
+                    size={15}
+                  />
+
+                  <div>
+                    <strong>
+                      {account.role}
+                    </strong>
+
+                    <span>
+                      {
+                        account
+                          .description
+                      }
+                    </span>
+                  </div>
+                </button>
+              )
+            )}
+          </div>
+
           {error && (
-            <div className="login-error">
+            <div
+              className="login-error"
+              role="alert"
+              aria-live="polite"
+            >
               {error}
             </div>
           )}
@@ -283,64 +344,26 @@ export function AuthShell() {
             <KeyRound size={15} />
 
             {busy
-              ? "Authenticating..."
+              ? "Signing in..."
               : "Sign in"}
           </button>
-
-          <div className="demo-account-heading">
-            Local demo identities
-          </div>
-
-          <div className="demo-account-list">
-            {demoAccounts.map(
-              (account) => (
-                <button
-                  key={
-                    account.username
-                  }
-                  type="button"
-                  className={
-                    username ===
-                    account.username
-                      ? "demo-account selected"
-                      : "demo-account"
-                  }
-                  onClick={() =>
-                    chooseAccount(
-                      account
-                    )
-                  }
-                >
-                  <UserRoundCheck
-                    size={15}
-                  />
-
-                  <div>
-                    <strong>
-                      {account.role}
-                    </strong>
-
-                    <span>
-                      {
-                        account
-                          .description
-                      }
-                    </span>
-                  </div>
-                </button>
-              )
-            )}
-          </div>
 
           <div className="login-security-note">
             <ShieldCheck size={14} />
 
-            <span>
-              Local development accounts.
-              Passwords can be overridden
-              through environment
-              variables.
-            </span>
+            <div>
+              <strong>
+                Local demo environment
+              </strong>
+
+              <span>
+                Demo credentials are
+                configured for development
+                and can be overridden
+                through environment
+                variables.
+              </span>
+            </div>
           </div>
         </form>
       </section>
