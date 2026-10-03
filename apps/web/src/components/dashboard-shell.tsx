@@ -575,28 +575,48 @@ export function DashboardShell() {
                   </div>
                 )}
 
-                <button
-                  className="primary-button"
-                  type="button"
-                  disabled={
-                    detecting ||
-                    !canRunDetection
-                  }
-                  title={
-                    canRunDetection
-                      ? "Run AML detection"
-                      : "Senior Analyst or Administrator required"
-                  }
-                  onClick={() =>
-                    void handleRunDetection()
-                  }
-                >
-                  <Play size={16} />
+                <div className="detection-action-group">
+                  <button
+                                    className={
+                                    canRunDetection
+                                      ? "primary-button"
+                                      : "primary-button primary-button-restricted"
+                                  }
+                                    type="button"
+                                  aria-describedby={
+                                    canRunDetection
+                                      ? undefined
+                                      : "aml-detection-permission"
+                                  }
+                                    disabled={
+                                      detecting ||
+                                      !canRunDetection
+                                    }
+                                    title={
+                                      canRunDetection
+                                        ? "Run AML detection"
+                                        : "Senior Analyst or Administrator required"
+                                    }
+                                    onClick={() =>
+                                      void handleRunDetection()
+                                    }
+                                  >
+                                    <Play size={16} />
 
-                  {detecting
-                    ? "Scanning..."
-                    : "Run AML detection"}
-                </button>
+                                    {detecting
+                                      ? "Scanning..."
+                                      : "Run AML detection"}
+                                  </button>
+
+                  {!canRunDetection && (
+                    <span
+                      id="aml-detection-permission"
+                      className="detection-permission-note"
+                    >
+                      Senior Analyst or Administrator required
+                    </span>
+                  )}
+                </div>
               </div>
             )}
           </section>

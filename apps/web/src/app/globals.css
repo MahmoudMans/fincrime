@@ -12522,3 +12522,265 @@ table {
 /* ==========================================================================
    END FINCRIME TRUE WORKSPACE ARCHITECTURE V1
    ========================================================================== */
+
+/* ==========================================================================
+   FINCRIME OVERVIEW POLISH V1
+   ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+   F105 — COMPACT INVESTIGATION CASE SUMMARY
+   -------------------------------------------------------------------------- */
+
+/*
+ * The Overview case section is orientation content, not a large working
+ * surface. Let the summary own only the height required by its real content.
+ */
+
+.workspace-view-overview
+.overview-investigation-cases {
+  min-height: 0 !important;
+
+  height: auto !important;
+
+  align-self: start;
+}
+
+.workspace-view-overview
+.overview-investigation-cases
+.cases-panel {
+  min-height: 0 !important;
+
+  height: auto !important;
+
+  align-content: start !important;
+
+  grid-template-rows:
+    auto
+    auto !important;
+}
+
+.workspace-view-overview
+.overview-investigation-cases
+.cases-panel
+> * {
+  min-height: 0 !important;
+}
+
+.workspace-view-overview
+.overview-investigation-cases
+.cases-panel
+> :last-child {
+  min-height: 0 !important;
+
+  height: auto !important;
+}
+
+
+/* --------------------------------------------------------------------------
+   F109 — COLLAPSE EMPTY GRAPH INSPECTOR
+   -------------------------------------------------------------------------- */
+
+/*
+ * Before node selection, the graph should receive the full available width.
+ * The original inspector returns automatically when a node is selected.
+ */
+
+.graph-inspector-collapsed {
+  display: none !important;
+}
+
+/*
+ * Handles both grid and flexible GraphExplorer parent layouts without
+ * changing the selected-state layout.
+ */
+
+.workspace-view-overview
+*:has(> .graph-inspector-collapsed) {
+  grid-template-columns:
+    minmax(
+      0,
+      1fr
+    ) !important;
+
+  column-gap: 0 !important;
+}
+
+.workspace-view-overview
+*:has(> .graph-inspector-collapsed)
+> :not(.graph-inspector-collapsed) {
+  min-width: 0;
+
+  width: 100%;
+
+  max-width: none;
+
+  flex:
+    1
+    1
+    100%;
+}
+
+
+/* --------------------------------------------------------------------------
+   F108 — ROLE-RESTRICTED AML DETECTION
+   -------------------------------------------------------------------------- */
+
+.detection-action-group {
+  display: grid;
+
+  justify-items: stretch;
+
+  gap: 6px;
+
+  min-width: 188px;
+}
+
+.primary-button.primary-button-restricted,
+.primary-button.primary-button-restricted:disabled {
+  opacity: 1;
+
+  cursor: not-allowed;
+
+  color:
+    rgba(
+      190,
+      204,
+      219,
+      0.72
+    );
+
+  border-color:
+    rgba(
+      119,
+      148,
+      181,
+      0.22
+    );
+
+  background:
+    rgba(
+      57,
+      82,
+      111,
+      0.26
+    );
+
+  box-shadow: none;
+}
+
+.primary-button.primary-button-restricted:hover,
+.primary-button.primary-button-restricted:disabled:hover {
+  transform: none;
+
+  border-color:
+    rgba(
+      119,
+      148,
+      181,
+      0.22
+    );
+
+  background:
+    rgba(
+      57,
+      82,
+      111,
+      0.26
+    );
+}
+
+.detection-permission-note {
+  display: block;
+
+  max-width: 220px;
+
+  justify-self: end;
+
+  color:
+    var(
+      --text-soft,
+      #71869e
+    );
+
+  font-size: 10.5px;
+
+  line-height: 1.4;
+
+  text-align: right;
+}
+
+
+/* --------------------------------------------------------------------------
+   F106 / F111 — TECHNICAL METADATA READABILITY
+   -------------------------------------------------------------------------- */
+
+/*
+ * Preserve exact task-critical identifiers. This pass improves readability
+ * rather than truncating or rewriting operational data.
+ */
+
+.workspace-view
+.alert-meta,
+
+.workspace-view
+.case-meta,
+
+.workspace-view
+.evidence-meta,
+
+.workspace-view
+.timeline-meta,
+
+.workspace-view
+.finding-meta,
+
+.workspace-view
+.decision-meta,
+
+.workspace-view
+.review-meta,
+
+.workspace-view
+.custody-meta {
+  font-size:
+    10.5px !important;
+
+  line-height:
+    1.45 !important;
+}
+
+.workspace-view
+code {
+  font-size:
+    10.5px !important;
+
+  line-height:
+    1.45 !important;
+}
+
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE ROLE-ACTION BEHAVIOR
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 850px) {
+  .detection-action-group {
+    width: 100%;
+
+    min-width: 0;
+  }
+
+  .detection-permission-note {
+    justify-self: start;
+
+    max-width: none;
+
+    text-align: left;
+  }
+}
+
+
+/* ==========================================================================
+   END FINCRIME OVERVIEW POLISH V1
+   ========================================================================== */

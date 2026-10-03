@@ -278,7 +278,7 @@ export function GraphExplorer({
           aria-label="Financial investigation network"
         />
 
-        <aside className="graph-inspector">
+        <aside className={selectedNode ? "graph-inspector" : "graph-inspector graph-inspector-collapsed"}>
           {selectedNode ? (
             <>
               <div className="eyebrow">Selected entity</div>
