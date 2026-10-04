@@ -8,6 +8,7 @@ import {
   Building2,
   ChevronRight,
   CircleDollarSign,
+  Database,
   FileSearch,
   GitBranch,
   Landmark,
@@ -47,6 +48,7 @@ import { useAuth } from "./auth-context";
 import { GraphExplorer } from "./graph-explorer";
 import { GraphInvestigationWorkbench } from "./graph-investigation-workbench";
 import { IntelligenceExplorer } from "./intelligence-explorer";
+import { DataIngestionCenter } from "./data-ingestion-center";
 import { CaseWorkspace } from "./case-workspace";
 
 const navItems = [
@@ -74,6 +76,11 @@ const navItems = [
     name: "Entities",
     icon: Building2,
     target: "entities",
+  },
+  {
+    name: "Ingestion",
+    icon: Database,
+    target: "ingestion",
   },
   {
     name: "Alerts",
@@ -141,6 +148,15 @@ const workspaceContent:
       "Entities",
     description:
       "Investigate customers, accounts, counterparties and their connected activity.",
+  },
+
+  ingestion: {
+    eyebrow:
+      "Data operations",
+    title:
+      "Data ingestion",
+    description:
+      "Validate and import customer, account and transaction datasets before they enter monitoring workflows.",
   },
 
   alerts: {
@@ -764,6 +780,13 @@ export function DashboardShell() {
                   "entities" && (
                   <div className="workspace-view workspace-view-entities">
                     <IntelligenceExplorer />
+                  </div>
+                )}
+
+                {activeNavigation ===
+                  "ingestion" && (
+                  <div className="workspace-view workspace-view-ingestion">
+                    <DataIngestionCenter />
                   </div>
                 )}
 

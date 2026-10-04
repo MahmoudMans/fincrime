@@ -2165,3 +2165,151 @@ export function reviewInvestigationConclusionPackage(
     }
   );
 }
+
+/* ==========================================================================
+   DATA INGESTION CENTER V1
+   ========================================================================== */
+
+export interface DataImportSchema {
+  datasetType: string;
+  requiredColumns: string[];
+  naturalKey: string;
+  dependency: string;
+  allowedValues: Record<
+    string,
+    string[]
+  >;
+}
+
+export interface DataImportIssue {
+  rowNumber: number;
+  classification: string;
+  field: string | null;
+  code: string;
+  message: string;
+}
+
+export interface DataImportJob {
+  id: string;
+  datasetType: string;
+  fileName: string;
+  mediaType: string | null;
+  fileSize: number;
+  sha256: string;
+  status: string;
+
+  totalRows: number;
+  validRows: number;
+  duplicateRows: number;
+  invalidRows: number;
+  importedRows: number;
+
+  createdBy: string;
+  createdAt: string;
+  validatedAt: string | null;
+  importedAt: string | null;
+
+  graphSyncStatus: string;
+  graphSyncError: string | null;
+  failureMessage: string | null;
+
+  previewRows:
+    Array<Record<string, string>>;
+
+  issues: DataImportIssue[];
+}
+
+export interface DataImportGraphSync {
+  customers: number;
+  accounts: number;
+  transactions: number;
+  synchronizedAt: string;
+}
+
+export function fetchDataImportSchemas(
+  signal?: AbortSignal
+): Promise<DataImportSchema[]> {
+  return request<DataImportSchema[]>(
+    "/api/v1/data-imports/schemas",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchDataImportJobs(
+  signal?: AbortSignal
+): Promise<DataImportJob[]> {
+  return request<DataImportJob[]>(
+    "/api/v1/data-imports",
+    {
+      signal,
+    }
+  );
+}
+
+export function fetchDataImportJob(
+  jobId: string,
+  signal?: AbortSignal
+): Promise<DataImportJob> {
+  return request<DataImportJob>(
+    `/api/v1/data-imports/${encodeURIComponent(
+      jobId
+    )}`,
+    {
+      signal,
+    }
+  );
+}
+
+export function previewDataImport(
+  file: File,
+  datasetType: string
+): Promise<DataImportJob> {
+  const body = new FormData();
+
+  body.append(
+    "file",
+    file
+  );
+
+  body.append(
+    "datasetType",
+    datasetType
+  );
+
+  return request<DataImportJob>(
+    "/api/v1/data-imports/preview",
+    {
+      method: "POST",
+      body,
+    }
+  );
+}
+
+export function commitDataImport(
+  jobId: string
+): Promise<DataImportJob> {
+  return request<DataImportJob>(
+    `/api/v1/data-imports/${encodeURIComponent(
+      jobId
+    )}/commit`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export function resynchronizeImportGraph():
+Promise<DataImportGraphSync> {
+  return request<DataImportGraphSync>(
+    "/api/v1/data-imports/graph/resynchronize",
+    {
+      method: "POST",
+    }
+  );
+}
+
+/* ==========================================================================
+   END DATA INGESTION CENTER V1
+   ========================================================================== */

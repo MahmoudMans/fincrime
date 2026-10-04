@@ -13954,3 +13954,1406 @@ time {
 /* ==========================================================================
    END FINCRIME ENTITIES MASTER DETAIL POLISH V2
    ========================================================================== */
+
+/* ==========================================================================
+   FINCRIME DATA INGESTION CENTER V1
+   ========================================================================== */
+
+.workspace-view-ingestion {
+  min-width: 0;
+}
+
+.data-ingestion-center {
+  display: grid;
+  gap: 14px;
+
+  min-width: 0;
+}
+
+.ingestion-command-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.65fr)
+    minmax(260px, 0.75fr);
+
+  gap: 14px;
+}
+
+.ingestion-upload-card,
+.ingestion-process-card,
+.ingestion-preview-panel,
+.ingestion-history-panel,
+.ingestion-restricted-panel {
+  min-width: 0;
+
+  border:
+    1px solid
+    var(--border);
+
+  border-radius:
+    10px;
+
+  background:
+    rgba(
+      7,
+      18,
+      31,
+      0.72
+    );
+}
+
+.ingestion-upload-card {
+  padding:
+    18px;
+}
+
+.ingestion-card-heading,
+.ingestion-preview-heading,
+.ingestion-history-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.ingestion-card-heading h2,
+.ingestion-preview-heading h2,
+.ingestion-history-heading h2,
+.ingestion-process-card h2,
+.ingestion-restricted-panel h2 {
+  margin:
+    5px 0 5px;
+
+  color:
+    var(--text);
+
+  font-size:
+    18px;
+
+  font-weight:
+    650;
+
+  letter-spacing:
+    -0.025em;
+}
+
+.ingestion-card-heading p,
+.ingestion-preview-heading p,
+.ingestion-history-heading p,
+.ingestion-process-card > p,
+.ingestion-restricted-panel p {
+  margin:
+    0;
+
+  color:
+    var(--text-soft);
+
+  font-size:
+    9px;
+
+  line-height:
+    1.55;
+}
+
+.ingestion-admin-badge {
+  flex:
+    0 0 auto;
+
+  padding:
+    5px 7px;
+
+  border:
+    1px solid
+    rgba(
+      52,
+      127,
+      245,
+      0.22
+    );
+
+  border-radius:
+    5px;
+
+  color:
+    #88b7ff;
+
+  background:
+    rgba(
+      52,
+      127,
+      245,
+      0.08
+    );
+
+  font-size:
+    7px;
+
+  font-weight:
+    800;
+
+  letter-spacing:
+    0.05em;
+}
+
+.ingestion-type-row {
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 0.7fr)
+    minmax(0, 1fr);
+
+  align-items: end;
+
+  gap:
+    12px;
+
+  margin-top:
+    18px;
+}
+
+.ingestion-type-row label {
+  display: grid;
+  gap:
+    6px;
+}
+
+.ingestion-type-row label > span,
+.ingestion-schema-guide span,
+.ingestion-metric span,
+.ingestion-history-count span {
+  color:
+    var(--text-soft);
+
+  font-size:
+    7px;
+
+  font-weight:
+    700;
+
+  letter-spacing:
+    0.045em;
+
+  text-transform:
+    uppercase;
+}
+
+.ingestion-type-row select {
+  min-height:
+    38px;
+
+  padding:
+    0 10px;
+
+  border:
+    1px solid
+    var(--border);
+
+  border-radius:
+    7px;
+
+  outline:
+    0;
+
+  color:
+    var(--text-muted);
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.018
+    );
+
+  font-size:
+    9px;
+}
+
+.ingestion-limit {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap:
+    8px;
+
+  color:
+    #8eacc9;
+
+  font-size:
+    8px;
+
+  font-weight:
+    700;
+}
+
+.ingestion-limit span {
+  color:
+    var(--text-soft);
+
+  font-size:
+    7px;
+
+  font-weight:
+    500;
+}
+
+.ingestion-dropzone {
+  min-height:
+    150px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap:
+    7px;
+
+  margin-top:
+    13px;
+
+  padding:
+    20px;
+
+  border:
+    1px dashed
+    rgba(
+      100,
+      148,
+      198,
+      0.34
+    );
+
+  border-radius:
+    9px;
+
+  color:
+    #76a9de;
+
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(
+        52,
+        127,
+        245,
+        0.055
+      ),
+      transparent
+      70%
+    );
+
+  cursor:
+    pointer;
+
+  text-align:
+    center;
+
+  transition:
+    border-color
+    140ms ease,
+    background
+    140ms ease;
+}
+
+.ingestion-dropzone:hover {
+  border-color:
+    rgba(
+      93,
+      155,
+      234,
+      0.58
+    );
+
+  background:
+    rgba(
+      52,
+      127,
+      245,
+      0.04
+    );
+}
+
+.ingestion-dropzone strong {
+  color:
+    #d7e6f4;
+
+  font-size:
+    11px;
+
+  font-weight:
+    650;
+}
+
+.ingestion-dropzone span {
+  color:
+    var(--text-soft);
+
+  font-size:
+    8px;
+}
+
+.ingestion-file-input {
+  position:
+    absolute;
+
+  width:
+    1px;
+
+  height:
+    1px;
+
+  overflow:
+    hidden;
+
+  clip:
+    rect(
+      0,
+      0,
+      0,
+      0
+    );
+
+  white-space:
+    nowrap;
+}
+
+.ingestion-primary-actions,
+.ingestion-preview-actions {
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  gap:
+    8px;
+
+  margin-top:
+    13px;
+}
+
+.ingestion-schema-guide {
+  display: grid;
+
+  grid-template-columns:
+    minmax(120px, 0.35fr)
+    minmax(220px, 0.65fr);
+
+  gap:
+    10px;
+
+  margin-top:
+    14px;
+
+  padding:
+    11px;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius:
+    8px;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.012
+    );
+}
+
+.ingestion-schema-guide > div {
+  min-width:
+    0;
+}
+
+.ingestion-schema-guide strong {
+  display:
+    block;
+
+  margin-top:
+    5px;
+
+  color:
+    #c9dbea;
+
+  font-size:
+    8px;
+
+  font-weight:
+    600;
+
+  line-height:
+    1.5;
+}
+
+.ingestion-columns {
+  grid-column:
+    1 / -1;
+}
+
+.ingestion-columns code {
+  display:
+    block;
+
+  margin-top:
+    6px;
+
+  overflow-wrap:
+    anywhere;
+
+  color:
+    #87aaca;
+
+  font-size:
+    7px;
+
+  line-height:
+    1.6;
+}
+
+.ingestion-process-card {
+  padding:
+    18px;
+}
+
+.ingestion-pipeline {
+  display:
+    grid;
+
+  gap:
+    1px;
+
+  margin-top:
+    16px;
+
+  overflow:
+    hidden;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius:
+    8px;
+
+  background:
+    var(--border-soft);
+}
+
+.ingestion-pipeline-step {
+  min-height:
+    62px;
+
+  display:
+    grid;
+
+  grid-template-columns:
+    35px minmax(
+      0,
+      1fr
+    );
+
+  align-items:
+    center;
+
+  gap:
+    10px;
+
+  padding:
+    10px;
+
+  background:
+    rgba(
+      6,
+      16,
+      28,
+      0.98
+    );
+}
+
+.ingestion-pipeline-step > span {
+  width:
+    30px;
+
+  height:
+    30px;
+
+  display:
+    grid;
+
+  place-items:
+    center;
+
+  border:
+    1px solid
+    rgba(
+      52,
+      127,
+      245,
+      0.2
+    );
+
+  border-radius:
+    7px;
+
+  color:
+    #70a6e6;
+
+  background:
+    var(--blue-soft);
+
+  font-size:
+    7px;
+
+  font-weight:
+    800;
+}
+
+.ingestion-pipeline-step strong,
+.ingestion-pipeline-step small {
+  display:
+    block;
+}
+
+.ingestion-pipeline-step strong {
+  color:
+    #d4e2ef;
+
+  font-size:
+    9px;
+
+  font-weight:
+    650;
+}
+
+.ingestion-pipeline-step small {
+  margin-top:
+    3px;
+
+  color:
+    var(--text-soft);
+
+  font-size:
+    7px;
+
+  line-height:
+    1.4;
+}
+
+.ingestion-message {
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  gap:
+    7px;
+
+  margin-top:
+    12px;
+
+  padding:
+    9px 10px;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius:
+    7px;
+
+  font-size:
+    8px;
+
+  line-height:
+    1.45;
+}
+
+.ingestion-message-error {
+  color:
+    #ff8b94;
+
+  border-color:
+    rgba(
+      240,
+      92,
+      105,
+      0.25
+    );
+
+  background:
+    var(--red-soft);
+}
+
+.ingestion-message-success {
+  color:
+    #74c7ad;
+
+  border-color:
+    rgba(
+      72,
+      190,
+      151,
+      0.22
+    );
+
+  background:
+    var(--green-soft);
+}
+
+.ingestion-preview-panel {
+  padding:
+    18px;
+}
+
+.ingestion-preview-heading code {
+  color:
+    #8eacc9;
+
+  font-size:
+    7px;
+}
+
+.ingestion-status {
+  flex:
+    0 0 auto;
+
+  display:
+    inline-flex;
+
+  align-items:
+    center;
+
+  min-height:
+    25px;
+
+  padding:
+    0 7px;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius:
+    5px;
+
+  color:
+    var(--text-muted);
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.02
+    );
+
+  font-size:
+    7px;
+
+  font-weight:
+    800;
+}
+
+.ingestion-status-ready,
+.ingestion-status-imported {
+  color:
+    #6fd1ae;
+
+  border-color:
+    rgba(
+      72,
+      190,
+      151,
+      0.22
+    );
+
+  background:
+    var(--green-soft);
+}
+
+.ingestion-status-validated {
+  color:
+    var(--yellow);
+
+  border-color:
+    rgba(
+      235,
+      182,
+      70,
+      0.22
+    );
+
+  background:
+    var(--yellow-soft);
+}
+
+.ingestion-status-failed {
+  color:
+    #ff858f;
+
+  border-color:
+    rgba(
+      240,
+      92,
+      105,
+      0.24
+    );
+
+  background:
+    var(--red-soft);
+}
+
+.ingestion-metrics {
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(
+      5,
+      minmax(
+        0,
+        1fr
+      )
+    );
+
+  gap:
+    8px;
+
+  margin-top:
+    15px;
+}
+
+.ingestion-metric {
+  min-width:
+    0;
+
+  padding:
+    10px;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius:
+    7px;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.013
+    );
+}
+
+.ingestion-metric strong {
+  display:
+    block;
+
+  margin-top:
+    7px;
+
+  color:
+    #d9e6f3;
+
+  font-size:
+    17px;
+
+  font-weight:
+    650;
+}
+
+.ingestion-metric.success strong {
+  color:
+    #68c9a7;
+}
+
+.ingestion-metric.warning strong {
+  color:
+    var(--yellow);
+}
+
+.ingestion-metric.danger strong {
+  color:
+    #fa7f89;
+}
+
+.ingestion-graph-state {
+  margin-left:
+    auto;
+
+  color:
+    var(--text-soft);
+
+  font-size:
+    8px;
+}
+
+.ingestion-graph-state strong {
+  color:
+    var(--text-muted);
+}
+
+.ingestion-preview-table-wrap {
+  margin-top:
+    14px;
+
+  overflow-x:
+    auto;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius:
+    8px;
+}
+
+.ingestion-preview-table {
+  width:
+    100%;
+
+  min-width:
+    850px;
+
+  border-collapse:
+    collapse;
+}
+
+.ingestion-preview-table th,
+.ingestion-preview-table td {
+  padding:
+    9px 10px;
+
+  border-bottom:
+    1px solid
+    var(--border-soft);
+
+  text-align:
+    left;
+}
+
+.ingestion-preview-table th {
+  color:
+    var(--text-soft);
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.018
+    );
+
+  font-size:
+    7px;
+
+  font-weight:
+    750;
+
+  letter-spacing:
+    0.045em;
+
+  text-transform:
+    uppercase;
+}
+
+.ingestion-preview-table td {
+  color:
+    var(--text-muted);
+
+  font-size:
+    8px;
+
+  white-space:
+    nowrap;
+}
+
+.ingestion-preview-table tbody tr:last-child td {
+  border-bottom:
+    0;
+}
+
+.ingestion-issue-list {
+  margin-top:
+    14px;
+
+  overflow:
+    hidden;
+
+  border:
+    1px solid
+    var(--border-soft);
+
+  border-radius:
+    8px;
+}
+
+.ingestion-subheading {
+  min-height:
+    38px;
+
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    space-between;
+
+  gap:
+    12px;
+
+  padding:
+    0 10px;
+
+  border-bottom:
+    1px solid
+    var(--border-soft);
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.014
+    );
+}
+
+.ingestion-subheading strong {
+  color:
+    #cfdeeb;
+
+  font-size:
+    9px;
+}
+
+.ingestion-subheading span {
+  color:
+    var(--text-soft);
+
+  font-size:
+    7px;
+}
+
+.ingestion-issue-row {
+  display:
+    grid;
+
+  grid-template-columns:
+    72px
+    58px
+    140px
+    minmax(
+      0,
+      1fr
+    );
+
+  align-items:
+    center;
+
+  gap:
+    9px;
+
+  min-height:
+    40px;
+
+  padding:
+    7px 10px;
+
+  border-bottom:
+    1px solid
+    var(--border-soft);
+}
+
+.ingestion-issue-row:last-child {
+  border-bottom:
+    0;
+}
+
+.ingestion-issue-row > strong {
+  color:
+    var(--text-muted);
+
+  font-size:
+    8px;
+}
+
+.ingestion-issue-row > code {
+  overflow-wrap:
+    anywhere;
+
+  color:
+    #86a6c5;
+
+  font-size:
+    7px;
+}
+
+.ingestion-issue-row > span:last-child {
+  color:
+    var(--text-soft);
+
+  font-size:
+    8px;
+
+  line-height:
+    1.45;
+}
+
+.ingestion-issue-kind {
+  width:
+    fit-content;
+
+  padding:
+    4px 6px;
+
+  border-radius:
+    4px;
+
+  font-size:
+    6px;
+
+  font-weight:
+    800;
+}
+
+.ingestion-issue-kind.invalid {
+  color:
+    #ff818b;
+
+  background:
+    var(--red-soft);
+}
+
+.ingestion-issue-kind.duplicate {
+  color:
+    var(--yellow);
+
+  background:
+    var(--yellow-soft);
+}
+
+.ingestion-history-panel {
+  overflow:
+    hidden;
+}
+
+.ingestion-history-heading {
+  padding:
+    15px 16px;
+
+  border-bottom:
+    1px solid
+    var(--border-soft);
+}
+
+.ingestion-history-list {
+  display:
+    grid;
+}
+
+.ingestion-history-row {
+  width:
+    100%;
+
+  min-height:
+    62px;
+
+  display:
+    grid;
+
+  grid-template-columns:
+    minmax(
+      220px,
+      1fr
+    )
+    80px
+    80px
+    minmax(
+      150px,
+      0.4fr
+    )
+    auto;
+
+  align-items:
+    center;
+
+  gap:
+    12px;
+
+  padding:
+    10px 16px;
+
+  border:
+    0;
+
+  border-bottom:
+    1px solid
+    var(--border-soft);
+
+  color:
+    inherit;
+
+  background:
+    transparent;
+
+  cursor:
+    pointer;
+
+  text-align:
+    left;
+}
+
+.ingestion-history-row:last-child {
+  border-bottom:
+    0;
+}
+
+.ingestion-history-row:hover {
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.016
+    );
+}
+
+.ingestion-history-primary {
+  min-width:
+    0;
+}
+
+.ingestion-history-primary strong,
+.ingestion-history-primary span,
+.ingestion-history-time span,
+.ingestion-history-time small {
+  display:
+    block;
+}
+
+.ingestion-history-primary strong {
+  overflow:
+    hidden;
+
+  text-overflow:
+    ellipsis;
+
+  white-space:
+    nowrap;
+
+  color:
+    #d4e2ee;
+
+  font-size:
+    9px;
+}
+
+.ingestion-history-primary span {
+  margin-top:
+    4px;
+
+  color:
+    var(--text-soft);
+
+  font-size:
+    7px;
+}
+
+.ingestion-history-count strong {
+  display:
+    block;
+
+  margin-top:
+    4px;
+
+  color:
+    #cfdeeb;
+
+  font-size:
+    11px;
+}
+
+.ingestion-history-time span {
+  color:
+    var(--text-muted);
+
+  font-size:
+    7px;
+}
+
+.ingestion-history-time small {
+  margin-top:
+    4px;
+
+  overflow:
+    hidden;
+
+  text-overflow:
+    ellipsis;
+
+  white-space:
+    nowrap;
+
+  color:
+    var(--text-soft);
+
+  font-size:
+    6px;
+}
+
+.ingestion-history-empty {
+  padding:
+    28px 16px;
+
+  color:
+    var(--text-soft);
+
+  font-size:
+    9px;
+
+  text-align:
+    center;
+}
+
+.ingestion-restricted-panel {
+  min-height:
+    220px;
+
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    center;
+
+  gap:
+    14px;
+
+  padding:
+    30px;
+
+  color:
+    #7098c0;
+}
+
+.ingestion-restricted-panel > div {
+  max-width:
+    520px;
+}
+
+@media (max-width: 1100px) {
+  .ingestion-command-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+  .ingestion-history-row {
+    grid-template-columns:
+      minmax(
+        190px,
+        1fr
+      )
+      70px
+      70px
+      auto;
+  }
+
+  .ingestion-history-time {
+    display:
+      none;
+  }
+}
+
+@media (max-width: 760px) {
+  .ingestion-type-row,
+  .ingestion-schema-guide {
+    grid-template-columns:
+      1fr;
+  }
+
+  .ingestion-columns {
+    grid-column:
+      auto;
+  }
+
+  .ingestion-limit {
+    justify-content:
+      flex-start;
+  }
+
+  .ingestion-metrics {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(
+          0,
+          1fr
+        )
+      );
+  }
+
+  .ingestion-preview-actions {
+    align-items:
+      stretch;
+
+    flex-direction:
+      column;
+  }
+
+  .ingestion-preview-actions button {
+    width:
+      100%;
+
+    justify-content:
+      center;
+  }
+
+  .ingestion-graph-state {
+    margin-left:
+      0;
+  }
+
+  .ingestion-issue-row {
+    grid-template-columns:
+      70px
+      50px
+      minmax(
+        0,
+        1fr
+      );
+  }
+
+  .ingestion-issue-row > span:last-child {
+    grid-column:
+      1 / -1;
+  }
+
+  .ingestion-history-row {
+    grid-template-columns:
+      minmax(
+        0,
+        1fr
+      )
+      auto;
+  }
+
+  .ingestion-history-count,
+  .ingestion-history-time {
+    display:
+      none;
+  }
+}
+
+/* ==========================================================================
+   END FINCRIME DATA INGESTION CENTER V1
+   ========================================================================== */
