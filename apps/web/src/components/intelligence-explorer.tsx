@@ -42,7 +42,7 @@ export function IntelligenceExplorer() {
       <div className="panel-heading intelligence-heading">
         <div>
           <div className="eyebrow">
-            Financial intelligence
+            Entity explorer
           </div>
 
           <h2>Entity & transaction explorer</h2>

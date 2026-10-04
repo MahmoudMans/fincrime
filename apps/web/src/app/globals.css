@@ -13597,3 +13597,360 @@ time {
 /* ==========================================================================
    END FINCRIME TRANSACTIONS LEDGER UX V2
    ========================================================================== */
+
+/* ==========================================================================
+   FINCRIME ENTITIES MASTER DETAIL POLISH V2
+   ========================================================================== */
+
+/*
+ * Verified source structure:
+ *
+ * .intelligence-layout
+ *   .entity-list-panel
+ *     .entity-search
+ *     .entity-list
+ *
+ *   .entity-detail
+ *     .entity-detail-header
+ *     customer investigation detail...
+ *
+ * The customer-only rules use :has() with the existing customer search
+ * placeholder so Account and Transaction explorer modes retain their
+ * existing layout contracts.
+ */
+
+
+/* --------------------------------------------------------------------------
+   CUSTOMER MODE — REMOVE GRID STRETCH / ACCIDENTAL EMPTY RAIL
+   -------------------------------------------------------------------------- */
+
+.intelligence-panel
+.intelligence-layout:has(.entity-search input[placeholder="Search customers..."]) {
+  align-items:
+    start;
+
+  min-height:
+    0;
+}
+
+
+/* --------------------------------------------------------------------------
+   CUSTOMER MASTER RAIL
+   -------------------------------------------------------------------------- */
+
+.intelligence-panel
+.intelligence-layout:has(.entity-search input[placeholder="Search customers..."])
+.entity-list-panel {
+  align-self:
+    start;
+
+  position:
+    sticky;
+
+  top:
+    92px;
+
+  max-height:
+    calc(
+      100vh -
+      108px
+    );
+
+  overflow:
+    hidden;
+
+  border-bottom:
+    1px solid
+    var(
+      --border-soft
+    );
+}
+
+
+/*
+ * The list already owns overflow in the existing implementation.
+ * Preserve that ownership and make its height viewport-aware.
+ */
+
+.intelligence-panel
+.intelligence-layout:has(.entity-search input[placeholder="Search customers..."])
+.entity-list {
+  max-height:
+    calc(
+      100vh -
+      162px
+    );
+
+  overflow-y:
+    auto;
+
+  overscroll-behavior:
+    contain;
+
+  scrollbar-gutter:
+    stable;
+}
+
+
+/*
+ * Search stays visually attached to the customer selector while only the
+ * customer rows scroll.
+ */
+
+.intelligence-panel
+.intelligence-layout:has(.entity-search input[placeholder="Search customers..."])
+.entity-search {
+  position:
+    relative;
+
+  z-index:
+    2;
+
+  background:
+    rgba(
+      5,
+      13,
+      22,
+      0.96
+    );
+}
+
+
+/* --------------------------------------------------------------------------
+   CUSTOMER DETAIL PANE
+   -------------------------------------------------------------------------- */
+
+.intelligence-panel
+.intelligence-layout:has(.entity-search input[placeholder="Search customers..."])
+.entity-detail {
+  align-self:
+    start;
+
+  min-height:
+    0;
+}
+
+
+/* --------------------------------------------------------------------------
+   PERSISTENT SELECTED-CUSTOMER CONTEXT
+   -------------------------------------------------------------------------- */
+
+/*
+ * Reuse the existing Customer 360 identity header.
+ * Do not create or duplicate another entity identity component.
+ */
+
+.intelligence-panel
+.intelligence-layout:has(.entity-search input[placeholder="Search customers..."])
+.entity-detail-header {
+  position:
+    sticky;
+
+  top:
+    92px;
+
+  z-index:
+    6;
+
+  margin:
+    -18px
+    -18px
+    0;
+
+  padding:
+    18px
+    18px
+    16px;
+
+  background:
+    var(
+      --surface,
+      rgba(
+        8,
+        22,
+        37,
+        0.97
+      )
+    );
+
+  backdrop-filter:
+    blur(
+      14px
+    );
+
+  box-shadow:
+    0
+    10px
+    22px
+    rgba(
+      0,
+      0,
+      0,
+      0.12
+    );
+}
+
+
+/* --------------------------------------------------------------------------
+   LOCAL SCROLLBAR
+   -------------------------------------------------------------------------- */
+
+.intelligence-panel
+.intelligence-layout:has(.entity-search input[placeholder="Search customers..."])
+.entity-list::-webkit-scrollbar {
+  width:
+    8px;
+}
+
+
+.intelligence-panel
+.intelligence-layout:has(.entity-search input[placeholder="Search customers..."])
+.entity-list::-webkit-scrollbar-thumb {
+  border:
+    2px solid
+    transparent;
+
+  border-radius:
+    999px;
+
+  background:
+    rgba(
+      112,
+      145,
+      177,
+      0.28
+    );
+
+  background-clip:
+    padding-box;
+}
+
+
+/* --------------------------------------------------------------------------
+   SHORT VIEWPORTS
+   -------------------------------------------------------------------------- */
+
+@media (max-height: 720px) {
+
+  .intelligence-panel
+  .intelligence-layout:has(.entity-search input[placeholder="Search customers..."])
+  .entity-list-panel {
+    top:
+      84px;
+
+    max-height:
+      calc(
+        100vh -
+        96px
+      );
+  }
+
+
+  .intelligence-panel
+  .intelligence-layout:has(.entity-search input[placeholder="Search customers..."])
+  .entity-list {
+    max-height:
+      calc(
+        100vh -
+        150px
+      );
+  }
+
+
+  .intelligence-panel
+  .intelligence-layout:has(.entity-search input[placeholder="Search customers..."])
+  .entity-detail-header {
+    top:
+      84px;
+  }
+}
+
+
+/* --------------------------------------------------------------------------
+   EXISTING SINGLE-COLUMN BREAKPOINT
+   -------------------------------------------------------------------------- */
+
+/*
+ * The existing intelligence workspace becomes one column at 850px.
+ * At that point the master rail returns to normal document flow and the
+ * original 245px customer-list cap remains authoritative.
+ */
+
+@media (max-width: 850px) {
+
+  .intelligence-panel
+  .intelligence-layout:has(.entity-search input[placeholder="Search customers..."]) {
+    align-items:
+      stretch;
+  }
+
+
+  .intelligence-panel
+  .intelligence-layout:has(.entity-search input[placeholder="Search customers..."])
+  .entity-list-panel {
+    position:
+      static;
+
+    top:
+      auto;
+
+    max-height:
+      none;
+
+    overflow:
+      visible;
+
+    border-bottom:
+      1px solid
+      var(
+        --border-soft
+      );
+  }
+
+
+  .intelligence-panel
+  .intelligence-layout:has(.entity-search input[placeholder="Search customers..."])
+  .entity-list {
+    max-height:
+      245px;
+
+    overflow:
+      auto;
+
+    scrollbar-gutter:
+      auto;
+  }
+
+
+  .intelligence-panel
+  .intelligence-layout:has(.entity-search input[placeholder="Search customers..."])
+  .entity-detail-header {
+    position:
+      static;
+
+    top:
+      auto;
+
+    margin:
+      0;
+
+    padding:
+      0
+      0
+      16px;
+
+    background:
+      transparent;
+
+    backdrop-filter:
+      none;
+
+    box-shadow:
+      none;
+  }
+}
+
+
+/* ==========================================================================
+   END FINCRIME ENTITIES MASTER DETAIL POLISH V2
+   ========================================================================== */
