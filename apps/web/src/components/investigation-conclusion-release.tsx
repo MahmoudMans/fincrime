@@ -1,15 +1,12 @@
 "use client";
 
 import {
-  CheckCircle2,
   FileLock2,
   PackageCheck,
   ShieldCheck,
-  XCircle,
 } from "lucide-react";
 
 import {
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -19,16 +16,73 @@ import {
   fetchInvestigationFindings,
   prepareInvestigationConclusionPackage,
   reviewInvestigationConclusionPackage,
-  type InvestigationConclusionPackage,
-  type InvestigationFinding,
 } from "@/lib/api";
+
+import {
+  dataChecks,
+  DEFAULT_RELEASE_FILTERS,
+  filterReleases,
+  prepareBlockers,
+  type ReleaseFilters,
+} from "@/lib/ev-release";
+
+import { useActionRunner } from "@/lib/ev-hooks";
+
+import { formatDateTime, humanize } from "@/lib/format";
+
+import { clampPage, paginate } from "@/lib/list-utils";
+
+import { useLoad } from "@/lib/use-load";
 
 import {
   useAuth,
 } from "./auth-context";
 
+import {
+  PendingReview,
+  ReleaseFilterBar,
+} from "./ev-release-parts";
+
+import {
+  ErrorBanner,
+  SuccessBanner,
+} from "./ev-ui";
+
+import { Pager } from "./list-tools";
+
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "./state-card";
+
+const PACKAGE_PAGE_SIZE = 10;
+
+/** Both lists the screen needs, loaded together. */
+function fetchRelease(
+  signal: AbortSignal
+) {
+  return Promise.all([
+    fetchInvestigationFindings(
+      signal
+    ),
+    fetchInvestigationConclusionPackages(
+      signal
+    ),
+  ]).then(
+    ([
+      findings,
+      packages,
+    ]) => ({
+      findings,
+      packages,
+    })
+  );
+}
+
 export function InvestigationConclusionRelease() {
   const {
+    session,
     hasAnyRole,
   } = useAuth();
 
@@ -42,15 +96,31 @@ export function InvestigationConclusionRelease() {
       "ADMIN"
     );
 
-  const [findings, setFindings] =
-    useState<
-      InvestigationFinding[]
-    >([]);
+  const load =
+    useLoad(
+      fetchRelease,
+      "Unable to load conclusion release governance."
+    );
 
-  const [packages, setPackages] =
-    useState<
-      InvestigationConclusionPackage[]
-    >([]);
+  const findings =
+    useMemo(
+      () =>
+        load.data?.findings ??
+        [],
+      [
+        load.data,
+      ]
+    );
+
+  const packages =
+    useMemo(
+      () =>
+        load.data?.packages ??
+        [],
+      [
+        load.data,
+      ]
+    );
 
   const [
     selectedFindingId,
@@ -82,69 +152,29 @@ export function InvestigationConclusionRelease() {
       "Independent Administrator release review completed against the frozen conclusion package provenance."
     );
 
-  const [action, setAction] =
+  const [filters, setFilters] =
+    useState<ReleaseFilters>(
+      DEFAULT_RELEASE_FILTERS
+    );
+
+  const [page, setPage] =
+    useState(
+      0
+    );
+
+  const [notice, setNotice] =
     useState<string | null>(
       null
     );
 
-  const [error, setError] =
-    useState<string | null>(
-      null
-    );
-
-  useEffect(() => {
-    const controller =
-      new AbortController();
-
-    void Promise.all([
-      fetchInvestigationFindings(
-        controller.signal
-      ),
-      fetchInvestigationConclusionPackages(
-        controller.signal
-      ),
-    ])
-      .then(
-        ([
-          loadedFindings,
-          loadedPackages,
-        ]) => {
-          setFindings(
-            loadedFindings
-          );
-
-          setPackages(
-            loadedPackages
-          );
-
-          setError(
-            null
-          );
-        }
-      )
-      .catch(
-        (
-          loadError: unknown
-        ) => {
-          if (
-            loadError instanceof DOMException &&
-            loadError.name ===
-              "AbortError"
-          ) {
-            return;
-          }
-
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load conclusion release governance."
-          );
-        }
-      );
-
-    return () =>
-      controller.abort();
-  }, []);
+  const {
+    busy: action,
+    error,
+    errorKey,
+    clearError,
+    run,
+  } =
+    useActionRunner();
 
   const eligibleFindings =
     useMemo(
@@ -221,61 +251,112 @@ export function InvestigationConclusionRelease() {
       ]
     );
 
-  async function reload() {
-    const [
-      loadedFindings,
-      loadedPackages,
-    ] =
-      await Promise.all([
-        fetchInvestigationFindings(),
-        fetchInvestigationConclusionPackages(),
-      ]);
-
-    setFindings(
-      loadedFindings
+  const filteredPackages =
+    useMemo(
+      () =>
+        filterReleases(
+          packages,
+          filters
+        ),
+      [
+        packages,
+        filters,
+      ]
     );
 
-    setPackages(
-      loadedPackages
+  const safePage =
+    clampPage(
+      page,
+      filteredPackages.length,
+      PACKAGE_PAGE_SIZE
+    );
+
+  const pagePackages =
+    paginate(
+      filteredPackages,
+      safePage,
+      PACKAGE_PAGE_SIZE
+    );
+
+  const prepareProblems =
+    prepareBlockers(
+      {
+        canPrepare,
+        finding:
+          selectedFinding,
+        packages,
+      }
+    );
+
+  function updateFilters(
+    patch: Partial<ReleaseFilters>
+  ) {
+    setFilters(
+      (current) => ({
+        ...current,
+        ...patch,
+      })
+    );
+
+    setPage(
+      0
+    );
+  }
+
+  function resetFilters() {
+    setFilters(
+      DEFAULT_RELEASE_FILTERS
+    );
+
+    setPage(
+      0
+    );
+  }
+
+  function applyFilters(
+    next: ReleaseFilters
+  ) {
+    setFilters(
+      next
+    );
+
+    setPage(
+      0
     );
   }
 
   async function prepare() {
     if (
-      !selectedFinding
+      !selectedFinding ||
+      prepareProblems.length > 0
     ) {
       return;
     }
 
-    try {
-      setAction(
-        "prepare"
-      );
+    const findingId =
+      selectedFinding.id;
 
-      setError(
-        null
-      );
+    setNotice(
+      null
+    );
 
-      await prepareInvestigationConclusionPackage(
-        selectedFinding.id,
-        conclusionSummary,
-        releaseRationale
-      );
+    await run(
+      "prepare",
+      () =>
+        prepareInvestigationConclusionPackage(
+          findingId,
+          conclusionSummary.trim(),
+          releaseRationale.trim()
+        ),
+      "Unable to prepare conclusion package.",
+      (created) => {
+        setNotice(
+          `Prepared package v${created.packageVersion} for ${created.caseNumber}. It now waits for Administrator release review.`
+        );
 
-      await reload();
-
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Unable to prepare conclusion package."
-      );
-
-    } finally {
-      setAction(
-        null
-      );
-    }
+        load.reload();
+      }
+    );
   }
 
   async function review(
@@ -288,39 +369,36 @@ export function InvestigationConclusionRelease() {
       return;
     }
 
-    try {
-      setAction(
-        packageId
-      );
+    setNotice(
+      null
+    );
 
-      setError(
-        null
-      );
+    await run(
+      `review:${packageId}:${decision}`,
+      () =>
+        reviewInvestigationConclusionPackage(
+          packageId,
+          decision,
+          reviewNote.trim()
+        ),
+      "Unable to review conclusion package.",
+      (reviewed) => {
+        setNotice(
+          `Package v${reviewed.packageVersion} for ${reviewed.caseNumber} is now ${humanize(
+            reviewed.status
+          ).toLowerCase()}.`
+        );
 
-      await reviewInvestigationConclusionPackage(
-        packageId,
-        decision,
-        reviewNote
-      );
-
-      await reload();
-
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Unable to review conclusion package."
-      );
-
-    } finally {
-      setAction(
-        null
-      );
-    }
+        load.reload();
+      }
+    );
   }
 
   return (
-    <section className="panel conclusion-release-panel">
+    <section
+      className="panel conclusion-release-panel"
+      aria-busy={load.loading}
+    >
       <div className="panel-heading conclusion-release-heading">
         <div>
           <div className="eyebrow">
@@ -350,12 +428,34 @@ export function InvestigationConclusionRelease() {
         </div>
       </div>
 
-      {error && (
-        <div className="conclusion-release-error">
-          {error}
-        </div>
+      {notice && (
+        <SuccessBanner
+          message={notice}
+          onDismiss={() =>
+            setNotice(null)
+          }
+        />
       )}
 
+      {load.error && (
+        <ErrorState
+          compact
+          title="Unable to load conclusion packages"
+          message={load.error}
+          onRetry={load.reload}
+        />
+      )}
+
+      {load.data === null &&
+        load.loading && (
+          <LoadingState
+            compact
+            label="Loading conclusion packages"
+          />
+        )}
+
+      {load.data !== null && (
+      <>
       <div className="conclusion-release-metrics">
         <Metric
           label="Packages"
@@ -503,9 +603,9 @@ export function InvestigationConclusionRelease() {
             type="button"
             className="primary-button"
             disabled={
-              !canPrepare ||
               action !== null ||
               !selectedFinding ||
+              prepareProblems.length > 0 ||
               !conclusionSummary.trim() ||
               !releaseRationale.trim()
             }
@@ -523,6 +623,60 @@ export function InvestigationConclusionRelease() {
               : "Prepare package"}
           </button>
         </div>
+
+        {eligibleFindings.length === 0 && (
+          <p className="ui-ev-hint">
+            No approved finding with current evidence lineage is
+            available. A finding has to be approved in Findings
+            before a conclusion package can be prepared.
+          </p>
+        )}
+
+        {prepareProblems.length > 0 &&
+          selectedFinding && (
+            <div
+              className="ui-notice"
+              role="status"
+            >
+              <ShieldCheck
+                size={15}
+                aria-hidden="true"
+              />
+
+              <div>
+                <strong>
+                  A package cannot be prepared yet
+                </strong>
+
+                <ul className="ui-ev-blockers">
+                  {prepareProblems.map(
+                    (
+                      problem
+                    ) => (
+                      <li
+                        key={
+                          problem
+                        }
+                      >
+                        {
+                          problem
+                        }
+                      </li>
+                    )
+                  )}
+                </ul>
+              </div>
+            </div>
+          )}
+
+        {error &&
+          errorKey ===
+            "prepare" && (
+            <ErrorBanner
+              message={error}
+              onDismiss={clearError}
+            />
+          )}
 
         {selectedFinding && (
           <div className="conclusion-source-proof">
@@ -592,21 +746,56 @@ export function InvestigationConclusionRelease() {
         </label>
       </div>
 
+      {packages.length > 0 && (
+        <ReleaseFilterBar
+          packages={packages}
+          filters={filters}
+          filtered={filteredPackages}
+          refreshing={
+            load.loading
+          }
+          onChange={updateFilters}
+          onReset={resetFilters}
+          onApply={applyFilters}
+          onRefresh={load.reload}
+        />
+      )}
+
       <div className="conclusion-package-list">
         {packages.length ===
           0 && (
-          <div className="conclusion-package-empty">
-            <FileLock2
-              size={24}
-            />
-
-            <strong>
-              No conclusion packages
-            </strong>
-          </div>
+          <EmptyState
+            compact
+            icon={
+              <FileLock2
+                size={24}
+                aria-hidden="true"
+              />
+            }
+            title="No conclusion packages"
+            message="Prepare a package from an approved finding above. An Administrator then reviews it for release."
+          />
         )}
 
-        {packages.map(
+        {packages.length > 0 &&
+          filteredPackages.length === 0 && (
+            <EmptyState
+              compact
+              title="No packages match these filters"
+              message="Try a different search or clear the filters."
+              action={
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={resetFilters}
+                >
+                  Reset filters
+                </button>
+              }
+            />
+          )}
+
+        {pagePackages.map(
           (
             item
           ) => (
@@ -654,9 +843,9 @@ export function InvestigationConclusionRelease() {
                         : "conclusion-package-status"
                   }
                 >
-                  {
+                  {humanize(
                     item.status
-                  }
+                  )}
                 </div>
               </div>
 
@@ -728,74 +917,45 @@ export function InvestigationConclusionRelease() {
                 />
               </div>
 
-              <div className="conclusion-integrity-row">
-                <Integrity
-                  label="Fingerprint"
-                  valid={
-                    item.fingerprintValid
-                  }
-                />
-
-                <Integrity
-                  label="Finding lineage"
-                  valid={
-                    item.findingLineageCurrent
-                  }
-                />
-
-                <Integrity
-                  label="Outcome provenance"
-                  valid={
-                    item.outcomeLineageCurrent
-                  }
-                />
-              </div>
-
               {item.status ===
-                "PENDING" && (
-                <div className="conclusion-package-actions">
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    disabled={
-                      !canRelease ||
-                      action !== null
-                    }
-                    onClick={() =>
-                      void review(
-                        item.id,
-                        "REJECTED"
-                      )
-                    }
-                  >
-                    <XCircle
-                      size={12}
-                    />
-
-                    Reject
-                  </button>
-
-                  <button
-                    type="button"
-                    className="primary-button"
-                    disabled={
-                      !canRelease ||
-                      action !== null ||
-                      !item.sourceLineageCurrent
-                    }
-                    onClick={() =>
-                      void review(
-                        item.id,
-                        "RELEASED"
-                      )
-                    }
-                  >
-                    <CheckCircle2
-                      size={12}
-                    />
-
-                    Release
-                  </button>
+              "PENDING" ? (
+                <PendingReview
+                  item={item}
+                  canRelease={
+                    canRelease
+                  }
+                  username={
+                    session.username
+                  }
+                  reviewNote={
+                    reviewNote
+                  }
+                  action={action}
+                  onDecide={
+                    review
+                  }
+                />
+              ) : (
+                <div className="conclusion-integrity-row">
+                  {dataChecks(
+                    item
+                  ).map(
+                    (
+                      check
+                    ) => (
+                      <Integrity
+                        key={
+                          check.key
+                        }
+                        label={
+                          check.label
+                        }
+                        valid={
+                          check.ok
+                        }
+                      />
+                    )
+                  )}
                 </div>
               )}
 
@@ -811,15 +971,36 @@ export function InvestigationConclusionRelease() {
                     item.reviewedBy
                   }
                   {" · "}
-                  {
-                    item.releaseDecision
-                  }
+                  {humanize(
+                    item.releaseDecision ??
+                      ""
+                  )}
+                  {item.reviewedAt &&
+                    ` · ${formatDateTime(item.reviewedAt)} UTC`}
                 </div>
               )}
             </article>
           )
         )}
+
+        <Pager
+          page={safePage}
+          pageSize={PACKAGE_PAGE_SIZE}
+          total={filteredPackages.length}
+          label="Conclusion package pages"
+          onPage={setPage}
+        />
       </div>
+
+      {error &&
+        errorKey !== "prepare" && (
+          <ErrorBanner
+            message={error}
+            onDismiss={clearError}
+          />
+        )}
+      </>
+      )}
     </section>
   );
 }
@@ -890,24 +1071,6 @@ function Integrity({
         : "invalid"}
     </div>
   );
-}
-
-function humanize(
-  value: string
-) {
-  return value
-    .toLowerCase()
-    .replaceAll(
-      "_",
-      " "
-    )
-    .replace(
-      /\b\w/g,
-      (
-        character
-      ) =>
-        character.toUpperCase()
-    );
 }
 
 function shortHash(

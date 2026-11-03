@@ -63,6 +63,20 @@ public class InvestigationCaseService {
                                 )
                         );
 
+        // A case can only be closed through the governed resolve flow,
+        // which requires a disposition and a resolution summary and
+        // writes the case timeline. Advancing may therefore move a
+        // case from OPEN to IN_REVIEW but never to CLOSED.
+        if (
+                investigationCase.getStatus()
+                        == InvestigationCaseEntity.CaseStatus.IN_REVIEW
+        ) {
+            throw new IllegalArgumentException(
+                    "Resolve the case with a disposition and a "
+                            + "resolution summary to close it."
+            );
+        }
+
         investigationCase.advance(Instant.now());
 
         return toView(

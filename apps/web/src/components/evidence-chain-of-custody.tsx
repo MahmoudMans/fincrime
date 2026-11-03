@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 
 import {
-  useEffect,
+  useCallback,
   useMemo,
   useState,
 } from "react";
@@ -19,20 +19,58 @@ import {
   registerEvidenceCustody,
   transferEvidenceCustody,
   verifyEvidenceCustody,
-  type EvidenceCustodyEvent,
-  type EvidenceCustodyRecord,
-  type InvestigationTriageQueueItem,
+  type EvidenceIntegrityVerification,
 } from "@/lib/api";
+
+import {
+  DEFAULT_CUSTODY_FILTERS,
+  duplicateReference,
+  filterCustody,
+  isSha256,
+  type CustodyFilters,
+} from "@/lib/ev-custody";
+
+import { useActionRunner } from "@/lib/ev-hooks";
+
+import { humanize } from "@/lib/format";
+
+import { clampPage, paginate } from "@/lib/list-utils";
+
+import { useLoad } from "@/lib/use-load";
 
 import {
   useAuth,
 } from "./auth-context";
+
+import { ConfirmButton } from "./confirm-button";
+
+import {
+  CustodyFilterBar,
+  EvidenceEventLog,
+  VerificationResult,
+} from "./ev-custody-parts";
+
+import {
+  ErrorBanner,
+  HashText,
+  SuccessBanner,
+} from "./ev-ui";
+
+import { Pager } from "./list-tools";
+
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "./state-card";
 
 const CUSTODIANS = [
   "analyst@fincrime.local",
   "senior@fincrime.local",
   "admin@fincrime.local",
 ];
+
+const REGISTRY_PAGE_SIZE = 20;
 
 export function EvidenceChainOfCustody() {
   const {
@@ -45,20 +83,27 @@ export function EvidenceChainOfCustody() {
       "ADMIN"
     );
 
-  const [cases, setCases] =
-    useState<
-      InvestigationTriageQueueItem[]
-    >([]);
+  const registryLoad = useLoad(
+    fetchEvidenceCustodyRegistry,
+    "Unable to load evidence custody registry."
+  );
 
-  const [registry, setRegistry] =
-    useState<
-      EvidenceCustodyRecord[]
-    >([]);
+  // The case list only feeds the register form, so a failure there
+  // must not hide the registry.
+  const casesLoad = useLoad(
+    fetchInvestigationTriageQueue,
+    "Unable to load cases."
+  );
 
-  const [events, setEvents] =
-    useState<
-      EvidenceCustodyEvent[]
-    >([]);
+  const registry = useMemo(
+    () => registryLoad.data ?? [],
+    [registryLoad.data]
+  );
+
+  const cases = useMemo(
+    () => casesLoad.data ?? [],
+    [casesLoad.data]
+  );
 
   const [
     selectedCaseId,
@@ -120,140 +165,112 @@ export function EvidenceChainOfCustody() {
       "Transfer custody for independent evidence review."
     );
 
-  const [action, setAction] =
+  const [filters, setFilters] =
+    useState<CustodyFilters>(
+      DEFAULT_CUSTODY_FILTERS
+    );
+
+  const [page, setPage] =
+    useState(0);
+
+  const [notice, setNotice] =
     useState<string | null>(
       null
     );
 
-  const [error, setError] =
-    useState<string | null>(
-      null
-    );
+  // Last integrity check per evidence record. Keyed by id, so a
+  // result that arrives after the selection moved on is kept for the
+  // record it belongs to and never shown under another one.
+  const [verifications, setVerifications] =
+    useState<
+      Record<
+        string,
+        EvidenceIntegrityVerification
+      >
+    >({});
 
-  useEffect(() => {
-    const controller =
-      new AbortController();
+  const {
+    busy: action,
+    error,
+    errorKey,
+    run,
+    clearError,
+  } =
+    useActionRunner();
 
-    void Promise.all([
-      fetchInvestigationTriageQueue(
-        controller.signal
-      ),
-      fetchEvidenceCustodyRegistry(
-        controller.signal
-      ),
-    ])
-      .then(
-        ([
-          loadedCases,
-          loadedRegistry,
-        ]) => {
-          setCases(
-            loadedCases
-          );
-
-          setRegistry(
-            loadedRegistry
-          );
-
-          if (
-            loadedCases.length > 0
-          ) {
-            setSelectedCaseId(
-              (
-                current
-              ) =>
-                current ||
-                loadedCases[0].caseId
-            );
-          }
-
-          if (
-            loadedRegistry.length > 0
-          ) {
-            setSelectedEvidenceId(
-              (
-                current
-              ) =>
-                current ||
-                loadedRegistry[0].id
-            );
-          }
-
-          setError(
-            null
-          );
-        }
-      )
-      .catch(
-        (loadError: unknown) => {
-          if (
-            loadError instanceof DOMException &&
-            loadError.name ===
-              "AbortError"
-          ) {
-            return;
-          }
-
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load evidence custody registry."
-          );
-        }
-      );
-
-    return () =>
-      controller.abort();
-  }, []);
-
-  useEffect(() => {
-    if (
-      !selectedEvidenceId
-    ) {
-      return;
-    }
-
-    const controller =
-      new AbortController();
-
-    void fetchEvidenceCustodyEvents(
-      selectedEvidenceId,
-      controller.signal
+  // The case and the evidence follow the lists: a choice that is
+  // missing from the data (or not made yet) falls back to the first.
+  const activeCaseId =
+    selectedCaseId &&
+    cases.some(
+      (item) =>
+        item.caseId ===
+        selectedCaseId
     )
-      .then(
-        (
-          loadedEvents
-        ) => {
-          setEvents(
-            loadedEvents
-          );
-        }
-      )
-      .catch(
-        (
-          loadError: unknown
-        ) => {
-          if (
-            loadError instanceof DOMException &&
-            loadError.name ===
-              "AbortError"
-          ) {
-            return;
-          }
+      ? selectedCaseId
+      : cases[0]?.caseId ??
+        "";
 
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load custody events."
-          );
-        }
-      );
+  // Right after a registration the new id is selected before the
+  // reloaded registry contains it; wait for it instead of showing
+  // the first record for a moment.
+  const selectionPending =
+    selectedEvidenceId !== "" &&
+    registryLoad.loading &&
+    !registry.some(
+      (item) =>
+        item.id ===
+        selectedEvidenceId
+    );
 
-    return () =>
-      controller.abort();
-  }, [
-    selectedEvidenceId,
-  ]);
+  const activeEvidenceId =
+    selectionPending
+      ? ""
+      : selectedEvidenceId &&
+          registry.some(
+            (item) =>
+              item.id ===
+              selectedEvidenceId
+          )
+        ? selectedEvidenceId
+        : registry[0]?.id ??
+          "";
+
+  const fetchEvents = useCallback(
+    (signal: AbortSignal) =>
+      activeEvidenceId
+        ? fetchEvidenceCustodyEvents(
+            activeEvidenceId,
+            signal
+          ).then(
+            (events) => ({
+              evidenceId:
+                activeEvidenceId,
+              events,
+            })
+          )
+        : Promise.resolve({
+            evidenceId: "",
+            events: [],
+          }),
+    [
+      activeEvidenceId,
+    ]
+  );
+
+  const eventsLoad = useLoad(
+    fetchEvents,
+    "Unable to load custody events."
+  );
+
+  // The events kept while another record loads belong to the
+  // previous selection: only show them for the record on screen.
+  const eventsForSelection =
+    eventsLoad.data &&
+    eventsLoad.data.evidenceId ===
+      activeEvidenceId
+      ? eventsLoad.data.events
+      : null;
 
   const selectedEvidence =
     useMemo(
@@ -263,11 +280,11 @@ export function EvidenceChainOfCustody() {
             item
           ) =>
             item.id ===
-            selectedEvidenceId
+            activeEvidenceId
         ) ?? null,
       [
         registry,
-        selectedEvidenceId,
+        activeEvidenceId,
       ]
     );
 
@@ -286,80 +303,142 @@ export function EvidenceChainOfCustody() {
       ]
     );
 
-  async function reload(
-    evidenceId?: string
-  ) {
-    const loadedRegistry =
-      await fetchEvidenceCustodyRegistry();
-
-    setRegistry(
-      loadedRegistry
+  const filtered =
+    useMemo(
+      () =>
+        filterCustody(
+          registry,
+          filters
+        ),
+      [
+        registry,
+        filters,
+      ]
     );
 
-    const nextId =
-      evidenceId ||
-      selectedEvidenceId ||
-      loadedRegistry[0]?.id ||
-      "";
+  const safePage =
+    clampPage(
+      page,
+      filtered.length,
+      REGISTRY_PAGE_SIZE
+    );
 
-    if (
-      nextId
-    ) {
-      setSelectedEvidenceId(
-        nextId
-      );
+  const pageItems =
+    paginate(
+      filtered,
+      safePage,
+      REGISTRY_PAGE_SIZE
+    );
 
-      setEvents(
-        await fetchEvidenceCustodyEvents(
-          nextId
-        )
-      );
-    }
+  const duplicate =
+    duplicateReference(
+      registry,
+      activeCaseId,
+      reference
+    );
+
+  const shaProblem =
+    contentSha !== "" &&
+    !isSha256(
+      contentSha
+    );
+
+  const registerBlocked =
+    !activeCaseId ||
+    !reference.trim() ||
+    !type.trim() ||
+    !title.trim() ||
+    !source.trim() ||
+    !description.trim() ||
+    !isSha256(
+      contentSha
+    ) ||
+    duplicate !== null;
+
+  const alreadyHeld =
+    selectedEvidence !== null &&
+    selectedEvidence.currentCustodian.toLowerCase() ===
+      toCustodian.toLowerCase();
+
+  function updateFilters(
+    patch: Partial<CustodyFilters>
+  ) {
+    setFilters(
+      (current) => ({
+        ...current,
+        ...patch,
+      })
+    );
+
+    setPage(
+      0
+    );
+  }
+
+  function resetFilters() {
+    setFilters(
+      DEFAULT_CUSTODY_FILTERS
+    );
+
+    setPage(
+      0
+    );
+  }
+
+  function applyFilters(
+    next: CustodyFilters
+  ) {
+    setFilters(
+      next
+    );
+
+    setPage(
+      0
+    );
+  }
+
+  function refreshAll() {
+    registryLoad.reload();
+
+    eventsLoad.reload();
   }
 
   async function register() {
     if (
-      !selectedCaseId
+      !activeCaseId
     ) {
       return;
     }
 
-    try {
-      setAction(
-        "register"
-      );
+    setNotice(
+      null
+    );
 
-      setError(
-        null
-      );
-
-      const created =
-        await registerEvidenceCustody(
-          selectedCaseId,
-          reference,
-          type,
-          title,
-          source,
-          description,
-          contentSha
+    await run(
+      "register",
+      () =>
+        registerEvidenceCustody(
+          activeCaseId,
+          reference.trim(),
+          type.trim(),
+          title.trim(),
+          source.trim(),
+          description.trim(),
+          contentSha.trim()
+        ),
+      "Unable to register evidence.",
+      (created) => {
+        setSelectedEvidenceId(
+          created.id
         );
 
-      await reload(
-        created.id
-      );
+        setNotice(
+          `Registered ${created.evidenceReference} for ${created.caseNumber}.`
+        );
 
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Unable to register evidence."
-      );
-
-    } finally {
-      setAction(
-        null
-      );
-    }
+        registryLoad.reload();
+      }
+    );
   }
 
   async function transfer() {
@@ -369,37 +448,32 @@ export function EvidenceChainOfCustody() {
       return;
     }
 
-    try {
-      setAction(
-        "transfer"
-      );
+    const evidenceId =
+      selectedEvidence.id;
 
-      setError(
-        null
-      );
+    setNotice(
+      null
+    );
 
-      await transferEvidenceCustody(
-        selectedEvidence.id,
-        toCustodian,
-        transferNote
-      );
+    await run(
+      `transfer:${evidenceId}`,
+      () =>
+        transferEvidenceCustody(
+          evidenceId,
+          toCustodian,
+          transferNote.trim()
+        ),
+      "Unable to transfer evidence custody.",
+      (updated) => {
+        setNotice(
+          `Custody of ${updated.evidenceReference} transferred to ${updated.currentCustodian}.`
+        );
 
-      await reload(
-        selectedEvidence.id
-      );
+        registryLoad.reload();
 
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Unable to transfer evidence custody."
-      );
-
-    } finally {
-      setAction(
-        null
-      );
-    }
+        eventsLoad.reload();
+      }
+    );
   }
 
   async function verify() {
@@ -409,39 +483,43 @@ export function EvidenceChainOfCustody() {
       return;
     }
 
-    try {
-      setAction(
-        "verify"
-      );
+    const evidenceId =
+      selectedEvidence.id;
 
-      setError(
-        null
-      );
+    setNotice(
+      null
+    );
 
-      await verifyEvidenceCustody(
-        selectedEvidence.id
-      );
+    // verifyEvidenceCustody takes no abort signal, so a result that
+    // comes back late is stored under the id it was asked for.
+    await run(
+      `verify:${evidenceId}`,
+      () =>
+        verifyEvidenceCustody(
+          evidenceId
+        ),
+      "Unable to verify evidence integrity.",
+      (result) => {
+        setVerifications(
+          (current) => ({
+            ...current,
+            [evidenceId]:
+              result,
+          })
+        );
 
-      await reload(
-        selectedEvidence.id
-      );
+        registryLoad.reload();
 
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Unable to verify evidence integrity."
-      );
-
-    } finally {
-      setAction(
-        null
-      );
-    }
+        eventsLoad.reload();
+      }
+    );
   }
 
   return (
-    <section className="panel evidence-custody-panel">
+    <section
+      className="panel evidence-custody-panel"
+      aria-busy={registryLoad.loading}
+    >
       <div className="panel-heading evidence-custody-heading">
         <div>
           <div className="eyebrow">
@@ -470,12 +548,33 @@ export function EvidenceChainOfCustody() {
         </div>
       </div>
 
-      {error && (
-        <div className="evidence-custody-error">
-          {error}
-        </div>
+      {notice && (
+        <SuccessBanner
+          message={notice}
+          onDismiss={() =>
+            setNotice(null)
+          }
+        />
       )}
 
+      {registryLoad.error && (
+        <ErrorState
+          compact
+          title="Unable to load the evidence registry"
+          message={registryLoad.error}
+          onRetry={registryLoad.reload}
+        />
+      )}
+
+      {registryLoad.data === null &&
+        registryLoad.loading && (
+          <LoadingState
+            compact
+            label="Loading evidence registry"
+          />
+        )}
+
+      {registryLoad.data !== null && (
       <div className="evidence-custody-metrics">
         <Metric
           label="Registered"
@@ -506,6 +605,7 @@ export function EvidenceChainOfCustody() {
           }
         />
       </div>
+      )}
 
       <div className="evidence-register-card">
         <div className="evidence-card-heading">
@@ -528,7 +628,10 @@ export function EvidenceChainOfCustody() {
 
             <select
               value={
-                selectedCaseId
+                activeCaseId
+              }
+              disabled={
+                cases.length === 0
               }
               onChange={(
                 event
@@ -538,6 +641,14 @@ export function EvidenceChainOfCustody() {
                 )
               }
             >
+              {cases.length === 0 && (
+                <option value="">
+                  {casesLoad.loading
+                    ? "Loading cases..."
+                    : "No cases available"}
+                </option>
+              )}
+
               {cases.map(
                 (
                   item
@@ -567,6 +678,9 @@ export function EvidenceChainOfCustody() {
             <input
               value={
                 reference
+              }
+              aria-invalid={
+                duplicate !== null
               }
               maxLength={
                 160
@@ -678,6 +792,9 @@ export function EvidenceChainOfCustody() {
               value={
                 contentSha
               }
+              aria-invalid={
+                shaProblem
+              }
               maxLength={
                 64
               }
@@ -696,9 +813,7 @@ export function EvidenceChainOfCustody() {
             className="primary-button"
             disabled={
               action !== null ||
-              !selectedCaseId ||
-              contentSha.length !==
-                64
+              registerBlocked
             }
             onClick={() =>
               void register()
@@ -714,24 +829,107 @@ export function EvidenceChainOfCustody() {
               : "Register evidence"}
           </button>
         </div>
+
+        {casesLoad.error && (
+          <ErrorState
+            compact
+            title="Unable to load cases"
+            message={casesLoad.error}
+            onRetry={casesLoad.reload}
+          />
+        )}
+
+        {duplicate && (
+          <p className="ui-ev-hint ui-ev-hint-warn">
+            This case already has evidence {duplicate.evidenceReference}.
+            Use a different reference.
+          </p>
+        )}
+
+        {shaProblem && (
+          <p className="ui-ev-hint ui-ev-hint-warn">
+            Content SHA-256 must be exactly 64 hexadecimal
+            characters ({contentSha.length}/64 entered).
+          </p>
+        )}
+
+        {error &&
+          errorKey === "register" && (
+            <ErrorBanner
+              message={error}
+              onDismiss={clearError}
+            />
+          )}
       </div>
 
+      {registryLoad.data !== null && registry.length > 0 && (
+        <CustodyFilterBar
+          records={registry}
+          filters={filters}
+          filtered={filtered}
+          refreshing={
+            registryLoad.loading ||
+            eventsLoad.loading
+          }
+          onChange={updateFilters}
+          onReset={resetFilters}
+          onApply={applyFilters}
+          onRefresh={refreshAll}
+        />
+      )}
+
+      {registryLoad.data !== null && (
       <div className="evidence-custody-layout">
         <div className="evidence-registry-list">
           {registry.length ===
-            0 && (
-            <div className="evidence-custody-empty">
-              <Fingerprint
-                size={22}
+            0 &&
+            registryLoad.data !== null && (
+              <EmptyState
+                compact
+                icon={
+                  <Fingerprint
+                    size={22}
+                    aria-hidden="true"
+                  />
+                }
+                title="No evidence registered"
+                message="Register an evidence artifact against a case above to start its chain of custody."
+                action={
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={
+                      registryLoad.loading
+                    }
+                    onClick={
+                      refreshAll
+                    }
+                  >
+                    Refresh
+                  </button>
+                }
               />
+            )}
 
-              <strong>
-                No evidence registered
-              </strong>
-            </div>
-          )}
+          {registry.length > 0 &&
+            filtered.length === 0 && (
+              <EmptyState
+                compact
+                title="No evidence matches these filters"
+                message="Try a different search or clear the filters."
+                action={
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={resetFilters}
+                  >
+                    Reset filters
+                  </button>
+                }
+              />
+            )}
 
-          {registry.map(
+          {pageItems.map(
             (
               item
             ) => (
@@ -740,9 +938,15 @@ export function EvidenceChainOfCustody() {
                   item.id
                 }
                 type="button"
+                aria-current={
+                  item.id ===
+                  activeEvidenceId
+                    ? "true"
+                    : undefined
+                }
                 className={
                   item.id ===
-                  selectedEvidenceId
+                  activeEvidenceId
                     ? "evidence-registry-row selected"
                     : "evidence-registry-row"
                 }
@@ -782,6 +986,14 @@ export function EvidenceChainOfCustody() {
               </button>
             )
           )}
+
+          <Pager
+            page={safePage}
+            pageSize={REGISTRY_PAGE_SIZE}
+            total={filtered.length}
+            label="Evidence pages"
+            onPage={setPage}
+          />
         </div>
 
         <div className="evidence-custody-workspace">
@@ -932,15 +1144,16 @@ export function EvidenceChainOfCustody() {
                     />
                   </label>
 
-                  <button
-                    type="button"
+                  <ConfirmButton
                     className="secondary-button"
+                    confirmLabel="Yes, transfer"
                     disabled={
                       !canManage ||
                       action !== null ||
-                      !transferNote.trim()
+                      !transferNote.trim() ||
+                      alreadyHeld
                     }
-                    onClick={() =>
+                    onConfirm={() =>
                       void transfer()
                     }
                   >
@@ -949,10 +1162,10 @@ export function EvidenceChainOfCustody() {
                     />
 
                     {action ===
-                    "transfer"
+                    `transfer:${selectedEvidence.id}`
                       ? "Transferring..."
                       : "Transfer custody"}
-                  </button>
+                  </ConfirmButton>
 
                   <button
                     type="button"
@@ -970,88 +1183,76 @@ export function EvidenceChainOfCustody() {
                     />
 
                     {action ===
-                    "verify"
+                    `verify:${selectedEvidence.id}`
                       ? "Verifying..."
                       : "Verify integrity"}
                   </button>
                 </div>
-              </div>
 
-              <div className="evidence-event-card">
-                <div className="evidence-card-heading">
-                  <div>
-                    <ShieldCheck
-                      size={14}
-                    />
-
-                    <strong>
-                      Custody history
-                    </strong>
-                  </div>
-
-                  <span>
-                    {
-                      events.length
-                    }
-                    {" events"}
-                  </span>
-                </div>
-
-                {events.map(
-                  (
-                    event
-                  ) => (
-                    <article
-                      key={
-                        event.id
-                      }
-                      className="evidence-event-row"
-                    >
-                      <div className="evidence-event-sequence">
-                        #
-                        {
-                          event.sequenceNumber
-                        }
-                      </div>
-
-                      <div>
-                        <strong>
-                          {
-                            humanize(
-                              event.eventType
-                            )
-                          }
-                        </strong>
-
-                        <span>
-                          {
-                            event.actorUsername
-                          }
-                          {" · "}
-                          {
-                            formatDateTime(
-                              event.occurredAt
-                            )
-                          }
-                        </span>
-
-                        <p>
-                          {
-                            event.eventNote
-                          }
-                        </p>
-
-                        <code>
-                          {
-                            event.eventHash
-                          }
-                        </code>
-                      </div>
-                    </article>
-                  )
+                {!canManage && (
+                  <p className="ui-ev-hint">
+                    Transfers and integrity checks need the
+                    Senior Analyst or Administrator role.
+                  </p>
                 )}
+
+                {alreadyHeld && (
+                  <p className="ui-ev-hint ui-ev-hint-warn">
+                    This evidence is already held by {toCustodian}.
+                    Choose a different custodian to transfer it.
+                  </p>
+                )}
+
+                {error &&
+                  errorKey !== "register" && (
+                    <ErrorBanner
+                      message={error}
+                      onDismiss={clearError}
+                    />
+                  )}
+
+                <VerificationResult
+                  result={
+                    verifications[
+                      selectedEvidence.id
+                    ] ?? null
+                  }
+                  verifying={
+                    action ===
+                    `verify:${selectedEvidence.id}`
+                  }
+                  currentStatus={
+                    selectedEvidence.currentStatus
+                  }
+                />
               </div>
+
+              <EvidenceEventLog
+                key={
+                  selectedEvidence.id
+                }
+                record={
+                  selectedEvidence
+                }
+                events={
+                  eventsForSelection
+                }
+                loading={
+                  eventsLoad.loading
+                }
+                error={
+                  eventsLoad.error
+                }
+                onRetry={
+                  eventsLoad.reload
+                }
+              />
             </>
+          ) : selectionPending ? (
+            <LoadingState
+              compact
+              label="Loading evidence record"
+            />
           ) : (
             <div className="evidence-custody-empty large">
               <Fingerprint
@@ -1059,12 +1260,15 @@ export function EvidenceChainOfCustody() {
               />
 
               <strong>
-                Select evidence
+                {registry.length === 0
+                  ? "No evidence to show yet"
+                  : "Select evidence"}
               </strong>
             </div>
           )}
         </div>
       </div>
+      )}
     </section>
   );
 }
@@ -1102,45 +1306,11 @@ function HashValue({
         {label}
       </span>
 
-      <code>
-        {value}
-      </code>
+      <HashText
+        value={value}
+        label={label}
+        length={24}
+      />
     </div>
-  );
-}
-
-function humanize(
-  value: string
-) {
-  return value
-    .toLowerCase()
-    .replaceAll(
-      "_",
-      " "
-    )
-    .replace(
-      /\b\w/g,
-      (
-        character
-      ) =>
-        character.toUpperCase()
-    );
-}
-
-function formatDateTime(
-  value: string
-) {
-  return new Intl.DateTimeFormat(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  ).format(
-    new Date(
-      value
-    )
   );
 }

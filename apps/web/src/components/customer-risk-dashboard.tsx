@@ -3,6 +3,7 @@
 import {
   Activity,
   BarChart3,
+  CheckCircle2,
   Fingerprint,
   Globe2,
   Network,
@@ -13,7 +14,7 @@ import {
 } from "lucide-react";
 
 import {
-  useEffect,
+  useCallback,
   useMemo,
   useState,
 } from "react";
@@ -27,18 +28,78 @@ import {
 } from "@/lib/api";
 
 import {
+  exportRowsAsCsv,
+} from "@/lib/csv";
+
+import {
+  formatDateTime,
+  formatRelativeTime,
+} from "@/lib/format";
+
+import {
+  clampPage,
+  paginate,
+  plural,
+} from "@/lib/list-utils";
+
+import {
+  useLoad,
+} from "@/lib/use-load";
+
+import {
+  useIsMounted,
+} from "@/lib/wf-common";
+
+import {
+  DEFAULT_RISK_FILTERS,
+  RISK_CSV_COLUMNS,
+  filterRisk,
+  latestGenerated,
+  riskFacetCounts,
+  sortRisk,
+  type RiskFilters,
+} from "@/lib/wf-risk";
+
+import {
   useAuth,
 } from "./auth-context";
 
-interface FactorState {
+import {
+  Pager,
+} from "./list-tools";
+
+import {
+  StackedBar,
+} from "./mini-charts";
+
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "./state-card";
+
+import {
+  RiskTools,
+} from "./wf-risk-tools";
+
+interface FactorData {
   assessmentId: string;
   items: CustomerRiskFactor[];
 }
+
+const PAGE_SIZE = 15;
+
+const EMPTY_ASSESSMENTS: CustomerRiskAssessment[] = [];
+
+const EMPTY_FACTORS: CustomerRiskFactor[] = [];
 
 export function CustomerRiskDashboard() {
   const {
     hasAnyRole,
   } = useAuth();
+
+  const isMounted =
+    useIsMounted();
 
   const canRecalculate =
     hasAnyRole(
@@ -46,10 +107,19 @@ export function CustomerRiskDashboard() {
       "ADMIN"
     );
 
-  const [assessments, setAssessments] =
-    useState<
-      CustomerRiskAssessment[]
-    >([]);
+  const load =
+    useLoad(
+      fetchCustomerRiskAssessments,
+      "Unable to load customer risk assessments."
+    );
+
+  const [filters, setFilters] =
+    useState<RiskFilters>(
+      DEFAULT_RISK_FILTERS
+    );
+
+  const [page, setPage] =
+    useState(0);
 
   const [
     selectedAssessmentId,
@@ -59,182 +129,182 @@ export function CustomerRiskDashboard() {
       null
     );
 
-  const [factorState, setFactorState] =
-    useState<FactorState | null>(
-      null
-    );
-
   const [action, setAction] =
     useState<string | null>(
       null
     );
 
-  const [error, setError] =
+  const [
+    actionFailure,
+    setActionFailure,
+  ] =
     useState<string | null>(
       null
     );
 
-  useEffect(() => {
-    const controller =
-      new AbortController();
+  const [notice, setNotice] =
+    useState<string | null>(
+      null
+    );
 
-    void fetchCustomerRiskAssessments(
-      controller.signal
-    )
-      .then((items) => {
-        setAssessments(
-          items
-        );
+  const assessments =
+    load.data ??
+    EMPTY_ASSESSMENTS;
 
-        setError(
-          null
-        );
-      })
-      .catch(
-        (loadError: unknown) => {
-          if (
-            loadError instanceof DOMException &&
-            loadError.name ===
-              "AbortError"
-          ) {
-            return;
-          }
+  const busy =
+    action !== null ||
+    load.loading;
 
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load customer risk assessments."
-          );
-        }
-      );
+  const filtered =
+    useMemo(
+      () =>
+        sortRisk(
+          filterRisk(
+            assessments,
+            filters
+          ),
+          filters.sort
+        ),
+      [
+        assessments,
+        filters,
+      ]
+    );
 
-    return () =>
-      controller.abort();
-  }, []);
+  const safePage =
+    clampPage(
+      page,
+      filtered.length,
+      PAGE_SIZE
+    );
+
+  const pageItems =
+    paginate(
+      filtered,
+      safePage,
+      PAGE_SIZE
+    );
 
   const activeAssessmentId =
     selectedAssessmentId &&
-    assessments.some(
+    filtered.some(
       (assessment) =>
         assessment.id ===
         selectedAssessmentId
     )
       ? selectedAssessmentId
-      : assessments[0]?.id ??
+      : filtered[0]?.id ??
         null;
 
   const selectedAssessment =
     useMemo(
       () =>
-        assessments.find(
+        filtered.find(
           (assessment) =>
             assessment.id ===
             activeAssessmentId
         ) ?? null,
       [
-        assessments,
+        filtered,
         activeAssessmentId,
       ]
     );
 
-  useEffect(() => {
-    if (!activeAssessmentId) {
-      return;
-    }
+  const loadFactors =
+    useCallback(
+      async (
+        signal: AbortSignal
+      ): Promise<FactorData | null> => {
+        if (
+          !activeAssessmentId
+        ) {
+          return null;
+        }
 
-    const controller =
-      new AbortController();
-
-    void fetchCustomerRiskFactors(
-      activeAssessmentId,
-      controller.signal
-    )
-      .then((items) => {
-        setFactorState({
+        return {
           assessmentId:
             activeAssessmentId,
-          items,
-        });
-
-        setError(
-          null
-        );
-      })
-      .catch(
-        (loadError: unknown) => {
-          if (
-            loadError instanceof DOMException &&
-            loadError.name ===
-              "AbortError"
-          ) {
-            return;
-          }
-
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load risk factors."
-          );
-        }
-      );
-
-    return () =>
-      controller.abort();
-  }, [
-    activeAssessmentId,
-  ]);
-
-  const factors =
-    useMemo(
-      () =>
-        factorState?.assessmentId ===
-        activeAssessmentId
-          ? factorState.items
-          : [],
+          items:
+            await fetchCustomerRiskFactors(
+              activeAssessmentId,
+              signal
+            ),
+        };
+      },
       [
-        factorState,
         activeAssessmentId,
       ]
     );
 
+  const factorsLoad =
+    useLoad(
+      loadFactors,
+      "Unable to load risk factors."
+    );
+
+  const factors =
+    factorsLoad.data
+      ?.assessmentId ===
+    activeAssessmentId
+      ? factorsLoad.data
+          .items
+      : EMPTY_FACTORS;
+
+  // Counts per band under the other filters: the summary tiles are
+  // also the band filter.
   const bandCounts =
     useMemo(
-      () => ({
-        critical:
-          assessments.filter(
-            (assessment) =>
-              assessment.riskBand ===
-              "CRITICAL"
-          ).length,
+      () =>
+        riskFacetCounts(
+          assessments,
+          filters,
+          "band"
+        ),
+      [
+        assessments,
+        filters,
+      ]
+    );
 
-        high:
-          assessments.filter(
-            (assessment) =>
-              assessment.riskBand ===
-              "HIGH"
-          ).length,
-
-        medium:
-          assessments.filter(
-            (assessment) =>
-              assessment.riskBand ===
-              "MEDIUM"
-          ).length,
-
-        low:
-          assessments.filter(
-            (assessment) =>
-              assessment.riskBand ===
-              "LOW"
-          ).length,
-      }),
+  const latest =
+    useMemo(
+      () =>
+        latestGenerated(
+          assessments
+        ),
       [
         assessments,
       ]
     );
 
+  function update(
+    patch: Partial<RiskFilters>
+  ) {
+    setFilters(
+      (current) => ({
+        ...current,
+        ...patch,
+      })
+    );
+
+    setPage(0);
+  }
+
+  function apply(
+    next: RiskFilters
+  ) {
+    setFilters(
+      next
+    );
+
+    setPage(0);
+  }
+
   async function recalculate() {
-    if (!canRecalculate) {
+    if (
+      !canRecalculate ||
+      busy
+    ) {
       return;
     }
 
@@ -243,41 +313,61 @@ export function CustomerRiskDashboard() {
         "recalculate"
       );
 
-      setError(
+      setActionFailure(
+        null
+      );
+
+      setNotice(
         null
       );
 
       const batch =
         await recalculateCustomerRisk();
 
-      setAssessments(
-        batch.assessments
-      );
+      if (!isMounted()) {
+        return;
+      }
 
       setSelectedAssessmentId(
-        batch.assessments[0]
-          ?.id ??
         null
       );
 
-      setFactorState(
-        null
+      setPage(0);
+
+      setNotice(
+        `Risk recalculated for ${batch.customerCount} ${plural(
+          batch.customerCount,
+          "customer"
+        )} (model ${batch.modelVersion}).`
       );
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
+
+      load.reload();
+    } catch (failure) {
+      if (!isMounted()) {
+        return;
+      }
+
+      setActionFailure(
+        failure instanceof Error
+          ? failure.message
           : "Unable to recalculate customer risk."
       );
     } finally {
-      setAction(
-        null
-      );
+      if (isMounted()) {
+        setAction(
+          null
+        );
+      }
     }
   }
 
   return (
-    <section className="panel customer-risk-panel">
+    <section
+      className="panel customer-risk-panel"
+      aria-busy={
+        load.loading
+      }
+    >
       <div className="panel-heading customer-risk-heading">
         <div>
           <div className="eyebrow">
@@ -302,7 +392,7 @@ export function CustomerRiskDashboard() {
           className="primary-button"
           disabled={
             !canRecalculate ||
-            action !== null
+            busy
           }
           title={
             canRecalculate
@@ -324,79 +414,186 @@ export function CustomerRiskDashboard() {
         </button>
       </div>
 
-      {error && (
-        <div className="customer-risk-error">
+      {actionFailure && (
+        <div
+          className="customer-risk-error"
+          role="alert"
+        >
           <ShieldAlert
             size={14}
           />
 
-          {error}
+          {actionFailure}
         </div>
       )}
 
-      <div className="risk-band-summary">
-        <RiskMetric
-          label="Customers"
-          value={
-            assessments.length
-          }
-          icon={
-            <UserRoundSearch
-              size={15}
-            />
-          }
-        />
+      {notice && (
+        <div
+          className="ui-notice ui-wf-ok"
+          role="status"
+        >
+          <CheckCircle2
+            size={15}
+            aria-hidden="true"
+          />
 
-        <RiskMetric
-          label="Critical"
-          value={
-            bandCounts.critical
-          }
-          icon={
-            <ShieldAlert
-              size={15}
-            />
-          }
-        />
+          <span>
+            {notice}
+          </span>
+        </div>
+      )}
 
-        <RiskMetric
-          label="High"
-          value={
-            bandCounts.high
-          }
-          icon={
-            <Activity
-              size={15}
-            />
-          }
-        />
+      {load.error &&
+        !load.data && (
+          <ErrorState
+            title="Unable to load customer risk"
+            message={
+              load.error
+            }
+            onRetry={
+              load.reload
+            }
+          />
+        )}
 
-        <RiskMetric
-          label="Medium"
-          value={
-            bandCounts.medium
-          }
-          icon={
-            <BarChart3
-              size={15}
-            />
-          }
-        />
+      {load.error &&
+        load.data && (
+          <ErrorState
+            compact
+            title="Could not refresh customer risk"
+            message={
+              load.error
+            }
+            onRetry={
+              load.reload
+            }
+          />
+        )}
 
-        <RiskMetric
-          label="Low"
-          value={
-            bandCounts.low
-          }
-          icon={
-            <Fingerprint
-              size={15}
-            />
-          }
-        />
-      </div>
+      {!load.error &&
+        !load.data && (
+          <LoadingState label="Loading customer risk" />
+        )}
 
-      {assessments.length ===
+      {load.data && (
+        <>
+          <div
+            className="risk-band-summary"
+            role="group"
+            aria-label="Filter by risk band"
+          >
+            {RISK_TILES.map(
+              (tile) => (
+                <RiskMetric
+                  key={
+                    tile.band
+                  }
+                  label={
+                    tile.label
+                  }
+                  value={
+                    bandCounts[
+                      tile.band
+                    ] ?? 0
+                  }
+                  icon={
+                    tile.icon
+                  }
+                  active={
+                    filters.band ===
+                    tile.band
+                  }
+                  onSelect={() =>
+                    update({
+                      band:
+                        filters.band ===
+                        tile.band
+                          ? "ALL"
+                          : tile.band,
+                    })
+                  }
+                />
+              )
+            )}
+          </div>
+
+          <div className="ui-wf-summary">
+            <StackedBar
+              label="Customers by risk band"
+              segments={RISK_TILES.filter(
+                (tile) =>
+                  tile.band !==
+                  "ALL"
+              ).map(
+                (tile) => ({
+                  key:
+                    tile.band,
+                  label:
+                    tile.label,
+                  value:
+                    bandCounts[
+                      tile.band
+                    ] ?? 0,
+                  tone:
+                    tile.tone,
+                })
+              )}
+            />
+          </div>
+        </>
+      )}
+
+      {load.data &&
+        assessments.length >
+          0 && (
+          <RiskTools
+            assessments={
+              assessments
+            }
+            filters={
+              filters
+            }
+            shown={
+              filtered.length
+            }
+            loading={
+              load.loading
+            }
+            note={
+              latest && (
+                <span
+                  className="ui-wf-muted"
+                  title={`Generated ${formatDateTime(
+                    latest
+                  )} UTC`}
+                >
+                  Latest assessment generated{" "}
+                  {formatRelativeTime(
+                    latest
+                  )}
+                </span>
+              )
+            }
+            onChange={
+              update
+            }
+            onApply={
+              apply
+            }
+            onReload={
+              load.reload
+            }
+            onExport={() =>
+              exportRowsAsCsv(
+                "Customer risk",
+                filtered,
+                RISK_CSV_COLUMNS
+              )
+            }
+          />
+        )}
+
+      {!load.data ? null : assessments.length ===
       0 ? (
         <div className="customer-risk-empty">
           <BarChart3
@@ -415,8 +612,36 @@ export function CustomerRiskDashboard() {
         </div>
       ) : (
         <div className="customer-risk-layout">
-          <div className="customer-risk-list">
-            {assessments.map(
+          <div
+            className={
+              load.loading
+                ? "customer-risk-list ui-list-loading"
+                : "customer-risk-list"
+            }
+          >
+            {filtered.length ===
+              0 && (
+              <EmptyState
+                compact
+                title="No customers match these filters"
+                message="Try a different search or clear the filters."
+                action={
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() =>
+                      apply(
+                        DEFAULT_RISK_FILTERS
+                      )
+                    }
+                  >
+                    Reset filters
+                  </button>
+                }
+              />
+            )}
+
+            {pageItems.map(
               (assessment) => (
                 <button
                   key={
@@ -428,6 +653,12 @@ export function CustomerRiskDashboard() {
                     assessment.id
                       ? "customer-risk-row selected"
                       : "customer-risk-row"
+                  }
+                  aria-current={
+                    activeAssessmentId ===
+                    assessment.id
+                      ? "true"
+                      : undefined
                   }
                   onClick={() =>
                     setSelectedAssessmentId(
@@ -483,6 +714,22 @@ export function CustomerRiskDashboard() {
                 </button>
               )
             )}
+
+            <Pager
+              label="Customer risk pages"
+              page={
+                safePage
+              }
+              pageSize={
+                PAGE_SIZE
+              }
+              total={
+                filtered.length
+              }
+              onPage={
+                setPage
+              }
+            />
           </div>
 
           <div className="customer-risk-detail">
@@ -511,6 +758,12 @@ export function CustomerRiskDashboard() {
                         selectedAssessment
                           .generatedAt
                       )}
+                      {" UTC ("}
+                      {formatRelativeTime(
+                        selectedAssessment
+                          .generatedAt
+                      )}
+                      {")"}
                     </p>
                   </div>
 
@@ -573,12 +826,48 @@ export function CustomerRiskDashboard() {
                   </div>
 
                   <span>
-                    {
-                      factors.length
-                    }
-                    {" factors"}
+                    {factorsLoad.error
+                      ? "Unavailable"
+                      : factorsLoad.loading
+                        ? "Loading..."
+                        : `${factors.length} ${plural(
+                            factors.length,
+                            "factor"
+                          )}`}
                   </span>
                 </div>
+
+                {factorsLoad.error && (
+                  <ErrorState
+                    compact
+                    title="Could not load risk factors"
+                    message={
+                      factorsLoad.error
+                    }
+                    onRetry={
+                      factorsLoad.reload
+                    }
+                  />
+                )}
+
+                {!factorsLoad.error &&
+                  factorsLoad.loading && (
+                    <LoadingState
+                      compact
+                      label="Loading risk factors"
+                    />
+                  )}
+
+                {!factorsLoad.error &&
+                  !factorsLoad.loading &&
+                  factors.length ===
+                    0 && (
+                    <EmptyState
+                      compact
+                      title="No factors recorded"
+                      message="This assessment has no stored score contributors."
+                    />
+                  )}
 
                 <div className="risk-factor-list">
                   {factors.map(
@@ -660,17 +949,70 @@ export function CustomerRiskDashboard() {
   );
 }
 
+const RISK_TILES: ReadonlyArray<{
+  band: string;
+  label: string;
+  icon: React.ReactNode;
+  tone: "danger" | "warning" | "info" | "ok";
+}> = [
+  {
+    band: "ALL",
+    label: "Customers",
+    icon: <UserRoundSearch size={15} />,
+    tone: "info",
+  },
+  {
+    band: "CRITICAL",
+    label: "Critical",
+    icon: <ShieldAlert size={15} />,
+    tone: "danger",
+  },
+  {
+    band: "HIGH",
+    label: "High",
+    icon: <Activity size={15} />,
+    tone: "warning",
+  },
+  {
+    band: "MEDIUM",
+    label: "Medium",
+    icon: <BarChart3 size={15} />,
+    tone: "info",
+  },
+  {
+    band: "LOW",
+    label: "Low",
+    icon: <Fingerprint size={15} />,
+    tone: "ok",
+  },
+];
+
+/** A summary tile that also filters the list by its band. */
 function RiskMetric({
   label,
   value,
   icon,
+  active,
+  onSelect,
 }: {
   label: string;
   value: number;
   icon: React.ReactNode;
+  active: boolean;
+  onSelect: () => void;
 }) {
   return (
-    <div className="risk-band-metric">
+    <button
+      type="button"
+      className={
+        active
+          ? "risk-band-metric ui-wf-metric-btn active"
+          : "risk-band-metric ui-wf-metric-btn"
+      }
+      aria-pressed={active}
+      aria-label={`${label}: ${value}`}
+      onClick={onSelect}
+    >
       <div>
         {icon}
       </div>
@@ -682,7 +1024,7 @@ function RiskMetric({
       <strong>
         {value}
       </strong>
-    </div>
+    </button>
   );
 }
 
@@ -775,20 +1117,4 @@ function factorIcon(
         />
       );
   }
-}
-
-function formatDateTime(
-  value: string
-) {
-  return new Intl.DateTimeFormat(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  ).format(
-    new Date(value)
-  );
 }

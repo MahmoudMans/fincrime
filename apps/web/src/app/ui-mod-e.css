@@ -1,0 +1,281 @@
+/* Module group e styles (prefix in the class names is unique to this file). */
+
+/* ---------- entity and transaction explorer ---------- */
+
+.ui-gx-toolbar {
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.ui-gx-toolbar .ui-result-count {
+  padding: 0 16px 10px;
+}
+
+.ui-gx-amount {
+  flex: 0 1 132px;
+  min-width: 112px;
+}
+
+.ui-gx-amount input {
+  width: 100%;
+}
+
+.ui-gx-note {
+  margin: 0 16px 10px;
+
+  color: var(--tone-warning);
+  font-size: 12.5px;
+}
+
+/* The transaction explorer carries its own padding; the shared
+   toolbar pieces bring theirs. */
+.transaction-explorer.ui-gx-transactions {
+  padding: 0 0 14px;
+}
+
+/* position: relative keeps the visually hidden spans inside the
+   scrolling box (an absolutely positioned child would otherwise
+   widen the whole page). */
+.ui-gx-transactions .table-scroll,
+.ui-gx-details .table-scroll {
+  position: relative;
+}
+
+.ui-gx-transactions .table-scroll {
+  margin: 12px 16px 0;
+}
+
+.ui-gx-transactions .ui-pager {
+  margin-top: 8px;
+}
+
+.ui-gx-transactions .state-card.ui-state-compact {
+  margin: 16px;
+}
+
+.entity-list .state-card.ui-state-compact {
+  min-height: 130px;
+  margin: 12px 10px;
+  padding: 18px 12px;
+}
+
+.entity-list-panel .ui-pager {
+  gap: 8px;
+
+  padding: 10px 8px;
+
+  font-size: 12px;
+}
+
+.entity-list-panel .ui-pager .secondary-button {
+  padding: 0 8px;
+}
+
+.entity-row[aria-current="true"] strong {
+  color: #fff;
+}
+
+/* ---------- overview graph ---------- */
+
+.graph-stats {
+  flex-wrap: wrap;
+}
+
+.ui-gx-picker {
+  flex: 1 1 220px;
+
+  max-width: 340px;
+  margin-left: auto;
+}
+
+.ui-gx-picker .ui-select {
+  height: 32px;
+
+  font-size: 12.5px;
+}
+
+.graph-actions .icon-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.graph-legend {
+  flex-wrap: wrap;
+  gap: 8px 17px;
+
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+/* ---------- graph investigation workbench ---------- */
+
+.ui-gx-canvas-wrap {
+  position: relative;
+}
+
+.ui-gx-canvas-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  padding: 10px 16px;
+
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.ui-gx-canvas-tools .secondary-button {
+  min-height: 32px;
+
+  font-size: 12.5px;
+}
+
+.ui-gx-canvas-tools .secondary-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ui-gx-overlay {
+  position: absolute;
+  inset: 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  color: var(--text-muted);
+  background: rgba(9, 17, 29, 0.66);
+
+  font-size: 13px;
+}
+
+.ui-gx-hint {
+  margin: 0 16px 10px;
+
+  color: var(--text-soft);
+  font-size: 12.5px;
+}
+
+.graph-investigation-error {
+  flex-wrap: wrap;
+}
+
+.graph-investigation-error span {
+  font-size: 12.5px;
+}
+
+.ui-gx-error-action {
+  margin-left: auto;
+}
+
+.investigation-workbench > .state-card.ui-state-compact {
+  margin: 16px;
+}
+
+.investigation-workbench > .ui-notice {
+  margin-bottom: 4px;
+}
+
+.ui-gx-details {
+  border-top: 1px solid var(--border-soft);
+}
+
+.ui-gx-details-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  padding: 14px 16px 0;
+}
+
+.ui-gx-details-head p {
+  max-width: 520px;
+  margin: 4px 0 0;
+
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.ui-gx-details .ui-result-count {
+  padding: 0 16px 8px;
+}
+
+.ui-gx-details .table-scroll {
+  margin: 0 16px 6px;
+
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+}
+
+.ui-gx-details .state-card.ui-state-compact {
+  margin: 0 16px 12px;
+}
+
+.ui-gx-table {
+  min-width: 520px;
+}
+
+.ui-gx-table tbody td,
+.ui-gx-table tbody th {
+  font-size: 12.5px;
+}
+
+.ui-gx-table tbody th {
+  padding: 12px 15px;
+
+  border-bottom: 1px solid var(--border-soft);
+
+  color: var(--text);
+  font-weight: 600;
+  text-align: left;
+}
+
+.ui-gx-table tbody tr:last-child th {
+  border-bottom: 0;
+}
+
+.ui-gx-link {
+  padding: 0;
+
+  border: 0;
+
+  color: #8fb6ec;
+  background: transparent;
+
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ui-gx-link:hover,
+.ui-gx-link[aria-pressed="true"] {
+  color: #fff;
+}
+
+.ui-gx-row-selected {
+  background: rgba(52, 127, 245, 0.14);
+}
+
+@media (max-width: 600px) {
+  .ui-gx-picker {
+    flex-basis: 100%;
+    max-width: none;
+    margin-left: 0;
+  }
+
+  .ui-gx-amount {
+    flex: 1 1 calc(50% - 10px);
+  }
+
+  .ui-gx-transactions .table-scroll,
+  .ui-gx-details .table-scroll {
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+}

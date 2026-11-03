@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 import {
-  useEffect,
+  useCallback,
   useMemo,
   useState,
 } from "react";
@@ -24,24 +24,87 @@ import {
   fetchWatchlistRuns,
   reviewWatchlistHit,
   runWatchlistScreening,
-  type WatchlistEntry,
   type WatchlistScreeningHit,
   type WatchlistScreeningRun,
 } from "@/lib/api";
 
 import {
+  exportRowsAsCsv,
+} from "@/lib/csv";
+
+import {
+  formatDateTime,
+  formatRelativeTime,
+  humanize,
+} from "@/lib/format";
+
+import {
+  clampPage,
+  paginate,
+  plural,
+} from "@/lib/list-utils";
+
+import {
+  useLoad,
+} from "@/lib/use-load";
+
+import {
+  useIsMounted,
+} from "@/lib/wf-common";
+
+import {
+  DEFAULT_HIT_FILTERS,
+  HIT_CSV_COLUMNS,
+  filterHits,
+  scoreTone,
+  sortHits,
+  type HitFilters,
+} from "@/lib/wf-watchlist";
+
+import {
   useAuth,
 } from "./auth-context";
+
+import {
+  ConfirmButton,
+} from "./confirm-button";
+
+import {
+  Pager,
+} from "./list-tools";
+
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "./state-card";
+
+import {
+  HitTools,
+} from "./wf-watchlist-tools";
+
+import {
+  WatchlistEntries,
+} from "./wf-watchlist-entries";
 
 interface HitState {
   runId: string;
   items: WatchlistScreeningHit[];
 }
 
+const PAGE_SIZE = 15;
+
+const EMPTY_RUNS: WatchlistScreeningRun[] = [];
+
+const EMPTY_HITS: WatchlistScreeningHit[] = [];
+
 export function WatchlistScreening() {
   const {
     hasAnyRole,
   } = useAuth();
+
+  const isMounted =
+    useIsMounted();
 
   const canRunScreening =
     hasAnyRole(
@@ -49,23 +112,27 @@ export function WatchlistScreening() {
       "ADMIN"
     );
 
-  const [entries, setEntries] =
-    useState<
-      WatchlistEntry[]
-    >([]);
+  const runsLoad =
+    useLoad(
+      fetchWatchlistRuns,
+      "Unable to load watchlist screening data."
+    );
 
-  const [runs, setRuns] =
-    useState<
-      WatchlistScreeningRun[]
-    >([]);
+  // Only the metrics and the entries table need these.
+  const entriesLoad =
+    useLoad(
+      fetchWatchlistEntries,
+      "Unable to load watchlist entries."
+    );
 
-  const [selectedRunId, setSelectedRunId] =
-    useState<string | null>(
+  // A run started here, shown at once while the list reloads.
+  const [createdRun, setCreatedRun] =
+    useState<WatchlistScreeningRun | null>(
       null
     );
 
-  const [hitState, setHitState] =
-    useState<HitState | null>(
+  const [selectedRunId, setSelectedRunId] =
+    useState<string | null>(
       null
     );
 
@@ -73,6 +140,14 @@ export function WatchlistScreening() {
     useState<string | null>(
       null
     );
+
+  const [filters, setFilters] =
+    useState<HitFilters>(
+      DEFAULT_HIT_FILTERS
+    );
+
+  const [page, setPage] =
+    useState(0);
 
   const [reviewNote, setReviewNote] =
     useState(
@@ -84,62 +159,43 @@ export function WatchlistScreening() {
       null
     );
 
-  const [error, setError] =
+  const [
+    actionFailure,
+    setActionFailure,
+  ] =
     useState<string | null>(
       null
     );
 
-  useEffect(() => {
-    const controller =
-      new AbortController();
+  const [notice, setNotice] =
+    useState<string | null>(
+      null
+    );
 
-    void Promise.all([
-      fetchWatchlistEntries(
-        controller.signal
-      ),
-      fetchWatchlistRuns(
-        controller.signal
-      ),
-    ])
-      .then(
-        ([
-          loadedEntries,
-          loadedRuns,
-        ]) => {
-          setEntries(
-            loadedEntries
-          );
+  const runs =
+    useMemo(
+      () => {
+        const loaded =
+          runsLoad.data ??
+          EMPTY_RUNS;
 
-          setRuns(
-            loadedRuns
-          );
-
-          setError(
-            null
-          );
-        }
-      )
-      .catch(
-        (loadError: unknown) => {
-          if (
-            loadError instanceof DOMException &&
-            loadError.name ===
-              "AbortError"
-          ) {
-            return;
-          }
-
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load watchlist screening data."
-          );
-        }
-      );
-
-    return () =>
-      controller.abort();
-  }, []);
+        return createdRun &&
+          !loaded.some(
+            (run) =>
+              run.id ===
+              createdRun.id
+          )
+          ? [
+              createdRun,
+              ...loaded,
+            ]
+          : loaded;
+      },
+      [
+        runsLoad.data,
+        createdRun,
+      ]
+    );
 
   const activeRunId =
     selectedRunId &&
@@ -151,81 +207,98 @@ export function WatchlistScreening() {
       ? selectedRunId
       : runs[0]?.id ?? null;
 
-  useEffect(() => {
-    if (!activeRunId) {
-      return;
-    }
+  const loadHits =
+    useCallback(
+      async (
+        signal: AbortSignal
+      ): Promise<HitState | null> => {
+        if (!activeRunId) {
+          return null;
+        }
 
-    const controller =
-      new AbortController();
-
-    void fetchWatchlistHits(
-      activeRunId,
-      controller.signal
-    )
-      .then((items) => {
-        setHitState({
+        return {
           runId:
             activeRunId,
-          items,
-        });
-
-        setError(null);
-      })
-      .catch(
-        (loadError: unknown) => {
-          if (
-            loadError instanceof DOMException &&
-            loadError.name ===
-              "AbortError"
-          ) {
-            return;
-          }
-
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load screening hits."
-          );
-        }
-      );
-
-    return () =>
-      controller.abort();
-  }, [
-    activeRunId,
-  ]);
-
-    const hits =
-    useMemo(
-      () =>
-        hitState?.runId ===
-        activeRunId
-          ? hitState.items
-          : [],
+          items:
+            await fetchWatchlistHits(
+              activeRunId,
+              signal
+            ),
+        };
+      },
       [
-        hitState,
         activeRunId,
       ]
     );
 
+  const hitsLoad =
+    useLoad(
+      loadHits,
+      "Unable to load screening hits."
+    );
+
+  const hits =
+    hitsLoad.data
+      ?.runId ===
+    activeRunId
+      ? hitsLoad.data.items
+      : EMPTY_HITS;
+
+  // Buttons wait for any reload, so a hit is never reviewed twice.
+  const busy =
+    action !== null ||
+    runsLoad.loading;
+
+  const reviewBusy =
+    busy ||
+    hitsLoad.loading;
+
+  const filtered =
+    useMemo(
+      () =>
+        sortHits(
+          filterHits(
+            hits,
+            filters
+          ),
+          filters.sort
+        ),
+      [
+        hits,
+        filters,
+      ]
+    );
+
+  const safePage =
+    clampPage(
+      page,
+      filtered.length,
+      PAGE_SIZE
+    );
+
+  const pageItems =
+    paginate(
+      filtered,
+      safePage,
+      PAGE_SIZE
+    );
 
   const selectedHit =
     useMemo(
       () =>
         (
           selectedHitId
-            ? hits.find(
+            ? filtered.find(
                 (hit) =>
                   hit.id ===
                   selectedHitId
               )
             : null
         ) ??
-        hits[0] ??
+        filtered[0] ??
         null,
       [
-        hits,
+        filtered,
         selectedHitId,
       ]
     );
@@ -244,9 +317,36 @@ export function WatchlistScreening() {
         "PENDING_REVIEW"
     ).length;
 
+  const entries =
+    entriesLoad.data;
+
+  function update(
+    patch: Partial<HitFilters>
+  ) {
+    setFilters(
+      (current) => ({
+        ...current,
+        ...patch,
+      })
+    );
+
+    setPage(0);
+  }
+
+  function apply(
+    next: HitFilters
+  ) {
+    setFilters(
+      next
+    );
+
+    setPage(0);
+  }
+
   async function executeScreening() {
     if (
-      !canRunScreening
+      !canRunScreening ||
+      busy
     ) {
       return;
     }
@@ -256,53 +356,64 @@ export function WatchlistScreening() {
         "run"
       );
 
-      setError(
+      setActionFailure(
+        null
+      );
+
+      setNotice(
         null
       );
 
       const run =
         await runWatchlistScreening();
 
-      const [
-        refreshedRuns,
-        newHits,
-      ] =
-        await Promise.all([
-          fetchWatchlistRuns(),
-          fetchWatchlistHits(
-            run.id
-          ),
-        ]);
+      if (!isMounted()) {
+        return;
+      }
 
-      setRuns(
-        refreshedRuns
+      setCreatedRun(
+        run
       );
 
       setSelectedRunId(
         run.id
       );
 
-      setHitState({
-        runId:
-          run.id,
-        items:
-          newHits,
-      });
-
       setSelectedHitId(
-        newHits[0]?.id ??
         null
       );
+
+      apply(
+        DEFAULT_HIT_FILTERS
+      );
+
+      setNotice(
+        `Screening complete: ${run.hitsFound} ${plural(
+          run.hitsFound,
+          "hit"
+        )} from ${run.customersScanned} ${plural(
+          run.customersScanned,
+          "customer"
+        )}.`
+      );
+
+      runsLoad.reload();
     } catch (runError) {
-      setError(
+      if (!isMounted()) {
+        return;
+      }
+
+      setActionFailure(
         runError instanceof Error
           ? runError.message
           : "Unable to execute watchlist screening."
       );
     } finally {
-      setAction(
-        null
-      );
+      if (isMounted()) {
+        setAction(
+          null
+        );
+      }
     }
   }
 
@@ -313,65 +424,75 @@ export function WatchlistScreening() {
   ) {
     if (
       !selectedHit ||
+      reviewBusy ||
       !reviewNote.trim()
     ) {
       return;
     }
+
+    const subject =
+      `${selectedHit.customerName} / ${selectedHit.watchlistName}`;
 
     try {
       setAction(
         decision
       );
 
-      setError(
+      setActionFailure(
         null
       );
 
-      const updated =
-        await reviewWatchlistHit(
-          selectedHit.id,
-          decision,
-          reviewNote.trim()
-        );
-
-      setHitState(
-        (current) => {
-          if (
-            !current ||
-            current.runId !==
-              activeRunId
-          ) {
-            return current;
-          }
-
-          return {
-            ...current,
-            items:
-              current.items.map(
-                (item) =>
-                  item.id ===
-                  updated.id
-                    ? updated
-                    : item
-              ),
-          };
-        }
+      setNotice(
+        null
       );
+
+      await reviewWatchlistHit(
+        selectedHit.id,
+        decision,
+        reviewNote.trim()
+      );
+
+      if (!isMounted()) {
+        return;
+      }
+
+      setNotice(
+        `${subject}: ${
+          decision ===
+          "CLEARED"
+            ? "match cleared"
+            : "escalated"
+        }.`
+      );
+
+      hitsLoad.reload();
     } catch (reviewError) {
-      setError(
+      if (!isMounted()) {
+        return;
+      }
+
+      setActionFailure(
         reviewError instanceof Error
           ? reviewError.message
           : "Unable to review screening hit."
       );
     } finally {
-      setAction(
-        null
-      );
+      if (isMounted()) {
+        setAction(
+          null
+        );
+      }
     }
   }
 
   return (
-    <section className="panel watchlist-screening-panel">
+    <section
+      className="panel watchlist-screening-panel"
+      aria-busy={
+        runsLoad.loading ||
+        hitsLoad.loading
+      }
+    >
       <div className="panel-heading watchlist-screening-heading">
         <div>
           <div className="eyebrow">
@@ -395,7 +516,7 @@ export function WatchlistScreening() {
           className="primary-button"
           disabled={
             !canRunScreening ||
-            action !== null
+            busy
           }
           title={
             canRunScreening
@@ -414,38 +535,95 @@ export function WatchlistScreening() {
         </button>
       </div>
 
-      {error && (
-        <div className="watchlist-error">
+      {actionFailure && (
+        <div
+          className="watchlist-error"
+          role="alert"
+        >
           <AlertTriangle
             size={14}
           />
 
-          {error}
+          {actionFailure}
         </div>
       )}
+
+      {notice && (
+        <div
+          className="ui-notice ui-wf-ok"
+          role="status"
+        >
+          <CheckCircle2
+            size={15}
+            aria-hidden="true"
+          />
+
+          <span>
+            {notice}
+          </span>
+        </div>
+      )}
+
+      {runsLoad.error &&
+        !runsLoad.data && (
+          <ErrorState
+            title="Unable to load watchlist screening"
+            message={
+              runsLoad.error
+            }
+            onRetry={
+              runsLoad.reload
+            }
+          />
+        )}
+
+      {runsLoad.error &&
+        runsLoad.data && (
+          <ErrorState
+            compact
+            title="Could not refresh the screening runs"
+            message={
+              runsLoad.error
+            }
+            onRetry={
+              runsLoad.reload
+            }
+          />
+        )}
+
+      {!runsLoad.error &&
+        !runsLoad.data && (
+          <LoadingState label="Loading watchlist screening" />
+        )}
 
       <div className="watchlist-metrics">
         <Metric
           label="Watchlist entries"
           value={
-            entries.length
+            entries
+              ? entries.length
+              : null
           }
         />
 
         <Metric
           label="Active entries"
           value={
-            entries.filter(
-              (entry) =>
-                entry.active
-            ).length
+            entries
+              ? entries.filter(
+                  (entry) =>
+                    entry.active
+                ).length
+              : null
           }
         />
 
         <Metric
           label="Screening runs"
           value={
-            runs.length
+            runsLoad.data
+              ? runs.length
+              : null
           }
         />
 
@@ -464,7 +642,54 @@ export function WatchlistScreening() {
         />
       </div>
 
-      <div className="watchlist-layout">
+      {hits.length > 0 && (
+        <HitTools
+          hits={
+            hits
+          }
+          filters={
+            filters
+          }
+          shown={
+            filtered.length
+          }
+          note={
+            selectedRun && (
+              <span
+                className="ui-wf-muted"
+                title={`Started ${formatDateTime(
+                  selectedRun.startedAt
+                )} UTC`}
+              >
+                Run started{" "}
+                {formatRelativeTime(
+                  selectedRun.startedAt
+                )}
+              </span>
+            )
+          }
+          onChange={
+            update
+          }
+          onApply={
+            apply
+          }
+          onExport={() =>
+            exportRowsAsCsv(
+              "Watchlist screening hits",
+              filtered,
+              HIT_CSV_COLUMNS
+            )
+          }
+        />
+      )}
+
+      <div
+        className="watchlist-layout"
+        hidden={
+          !runsLoad.data
+        }
+      >
         <div className="watchlist-left">
           <div className="watchlist-run-selector">
             <div>
@@ -476,12 +701,14 @@ export function WatchlistScreening() {
             </div>
 
             <select
+              aria-label="Screening run"
               value={
                 activeRunId ??
                 ""
               }
               disabled={
-                runs.length === 0
+                runs.length === 0 ||
+                busy
               }
               onChange={(event) => {
                 setSelectedRunId(
@@ -558,8 +785,41 @@ export function WatchlistScreening() {
             </div>
           )}
 
-          <div className="screening-hit-list">
+          <div
+            className={
+              hitsLoad.loading
+                ? "screening-hit-list ui-list-loading"
+                : "screening-hit-list"
+            }
+          >
             {activeRunId &&
+              hitsLoad.error && (
+                <ErrorState
+                  compact
+                  title="Unable to load screening hits"
+                  message={
+                    hitsLoad.error
+                  }
+                  onRetry={
+                    hitsLoad.reload
+                  }
+                />
+              )}
+
+            {activeRunId &&
+              !hitsLoad.error &&
+              hitsLoad.loading &&
+              hits.length ===
+                0 && (
+                <LoadingState
+                  compact
+                  label="Loading screening hits"
+                />
+              )}
+
+            {activeRunId &&
+              !hitsLoad.error &&
+              !hitsLoad.loading &&
               hits.length ===
                 0 && (
                 <div className="watchlist-empty">
@@ -596,7 +856,31 @@ export function WatchlistScreening() {
               </div>
             )}
 
-            {hits.map(
+            {hits.length >
+              0 &&
+              filtered.length ===
+                0 && (
+                <EmptyState
+                  compact
+                  title="No hits match these filters"
+                  message="Try a different search or clear the filters."
+                  action={
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() =>
+                        apply(
+                          DEFAULT_HIT_FILTERS
+                        )
+                      }
+                    >
+                      Reset filters
+                    </button>
+                  }
+                />
+              )}
+
+            {pageItems.map(
               (hit) => (
                 <button
                   type="button"
@@ -608,6 +892,12 @@ export function WatchlistScreening() {
                     hit.id
                       ? "screening-hit-row selected"
                       : "screening-hit-row"
+                  }
+                  aria-current={
+                    selectedHit?.id ===
+                    hit.id
+                      ? "true"
+                      : undefined
                   }
                   onClick={() =>
                     setSelectedHitId(
@@ -657,6 +947,22 @@ export function WatchlistScreening() {
                 </button>
               )
             )}
+
+            <Pager
+              label="Screening hit pages"
+              page={
+                safePage
+              }
+              pageSize={
+                PAGE_SIZE
+              }
+              total={
+                filtered.length
+              }
+              onPage={
+                setPage
+              }
+            />
           </div>
         </div>
 
@@ -867,14 +1173,14 @@ export function WatchlistScreening() {
                 {selectedHit.status ===
                 "PENDING_REVIEW" ? (
                   <div className="watchlist-review-actions">
-                    <button
-                      type="button"
+                    <ConfirmButton
                       className="secondary-button"
+                      confirmLabel="Yes, clear"
                       disabled={
-                        action !== null ||
+                        reviewBusy ||
                         !reviewNote.trim()
                       }
-                      onClick={() =>
+                      onConfirm={() =>
                         void review(
                           "CLEARED"
                         )
@@ -884,16 +1190,16 @@ export function WatchlistScreening() {
                         size={13}
                       />
                       Clear match
-                    </button>
+                    </ConfirmButton>
 
-                    <button
-                      type="button"
+                    <ConfirmButton
                       className="primary-button"
+                      confirmLabel="Yes, escalate"
                       disabled={
-                        action !== null ||
+                        reviewBusy ||
                         !reviewNote.trim()
                       }
-                      onClick={() =>
+                      onConfirm={() =>
                         void review(
                           "ESCALATED"
                         )
@@ -903,7 +1209,7 @@ export function WatchlistScreening() {
                         size={13}
                       />
                       Escalate
-                    </button>
+                    </ConfirmButton>
                   </div>
                 ) : (
                   <div className="watchlist-reviewed">
@@ -966,6 +1272,21 @@ export function WatchlistScreening() {
           )}
         </div>
       </div>
+
+      <WatchlistEntries
+        entries={
+          entries
+        }
+        error={
+          entriesLoad.error
+        }
+        loading={
+          entriesLoad.loading
+        }
+        onRetry={
+          entriesLoad.reload
+        }
+      />
     </section>
   );
 }
@@ -975,7 +1296,8 @@ function Metric({
   value,
 }: {
   label: string;
-  value: number;
+  /** Null while the figure is not loaded. */
+  value: number | null;
 }) {
   return (
     <div className="watchlist-metric">
@@ -984,7 +1306,7 @@ function Metric({
       </span>
 
       <strong>
-        {value}
+        {value ?? "—"}
       </strong>
     </div>
   );
@@ -1007,51 +1329,5 @@ function Detail({
         {value}
       </strong>
     </div>
-  );
-}
-
-function humanize(
-  value: string
-) {
-  return value
-    .toLowerCase()
-    .replaceAll(
-      "_",
-      " "
-    )
-    .replace(
-      /\b\w/g,
-      (character) =>
-        character.toUpperCase()
-    );
-}
-
-function scoreTone(
-  score: number
-) {
-  if (score >= 95) {
-    return "critical";
-  }
-
-  if (score >= 85) {
-    return "high";
-  }
-
-  return "medium";
-}
-
-function formatDateTime(
-  value: string
-) {
-  return new Intl.DateTimeFormat(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  ).format(
-    new Date(value)
   );
 }

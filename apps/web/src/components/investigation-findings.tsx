@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 
 import {
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -26,13 +25,101 @@ import {
 } from "@/lib/api";
 
 import {
+  exportRowsAsCsv,
+} from "@/lib/csv";
+
+import {
+  formatDateTime,
+  formatRelativeTime,
+} from "@/lib/format";
+
+import {
+  clampPage,
+  paginate,
+} from "@/lib/list-utils";
+
+import {
+  useLoad,
+} from "@/lib/use-load";
+
+import {
+  useIsMounted,
+} from "@/lib/wf-common";
+
+import {
+  DEFAULT_FINDING_FILTERS,
+  FINDING_CSV_COLUMNS,
+  filterFindings,
+  sortFindings,
+  type FindingFilters,
+} from "@/lib/wf-findings";
+
+import {
   useAuth,
 } from "./auth-context";
+
+import {
+  ConfirmButton,
+} from "./confirm-button";
+
+import {
+  Pager,
+} from "./list-tools";
+
+import {
+  StackedBar,
+} from "./mini-charts";
+
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "./state-card";
+
+import {
+  FindingTools,
+} from "./wf-findings-tools";
+
+interface EvidenceData {
+  evidence: EvidenceCustodyRecord[];
+  reviews: EvidenceReviewRecord[];
+}
+
+const PAGE_SIZE = 10;
+
+const EMPTY_EVIDENCE: EvidenceCustodyRecord[] = [];
+
+const EMPTY_REVIEWS: EvidenceReviewRecord[] = [];
+
+const EMPTY_FINDINGS: InvestigationFinding[] = [];
+
+async function loadEvidence(
+  signal: AbortSignal
+): Promise<EvidenceData> {
+  const [evidence, reviews] =
+    await Promise.all([
+      fetchEvidenceCustodyRegistry(
+        signal
+      ),
+
+      fetchEvidenceReviews(
+        signal
+      ),
+    ]);
+
+  return {
+    evidence,
+    reviews,
+  };
+}
 
 export function InvestigationFindings() {
   const {
     hasAnyRole,
   } = useAuth();
+
+  const isMounted =
+    useIsMounted();
 
   const canSubmit =
     hasAnyRole(
@@ -45,26 +132,27 @@ export function InvestigationFindings() {
       "ADMIN"
     );
 
-  const [evidence, setEvidence] =
-    useState<
-      EvidenceCustodyRecord[]
-    >([]);
+  const findingsLoad =
+    useLoad(
+      fetchInvestigationFindings,
+      "Unable to load investigation findings."
+    );
 
-  const [
-    evidenceReviews,
-    setEvidenceReviews,
-  ] =
-    useState<
-      EvidenceReviewRecord[]
-    >([]);
+  // Only the submit form needs the evidence; the findings list must
+  // stay usable when this part fails.
+  const evidenceLoad =
+    useLoad(
+      loadEvidence,
+      "Unable to load evidence accepted for analysis."
+    );
 
-  const [
-    findings,
-    setFindings,
-  ] =
-    useState<
-      InvestigationFinding[]
-    >([]);
+  const [filters, setFilters] =
+    useState<FindingFilters>(
+      DEFAULT_FINDING_FILTERS
+    );
+
+  const [page, setPage] =
+    useState(0);
 
   const [
     selectedEvidenceId,
@@ -106,72 +194,36 @@ export function InvestigationFindings() {
       null
     );
 
-  const [error, setError] =
+  const [
+    actionFailure,
+    setActionFailure,
+  ] =
     useState<string | null>(
       null
     );
 
-  useEffect(() => {
-    const controller =
-      new AbortController();
+  const [notice, setNotice] =
+    useState<string | null>(
+      null
+    );
 
-    void Promise.all([
-      fetchEvidenceCustodyRegistry(
-        controller.signal
-      ),
-      fetchEvidenceReviews(
-        controller.signal
-      ),
-      fetchInvestigationFindings(
-        controller.signal
-      ),
-    ])
-      .then(
-        ([
-          loadedEvidence,
-          loadedReviews,
-          loadedFindings,
-        ]) => {
-          setEvidence(
-            loadedEvidence
-          );
+  const findings =
+    findingsLoad.data ??
+    EMPTY_FINDINGS;
 
-          setEvidenceReviews(
-            loadedReviews
-          );
+  const evidence =
+    evidenceLoad.data?.evidence ??
+    EMPTY_EVIDENCE;
 
-          setFindings(
-            loadedFindings
-          );
+  const evidenceReviews =
+    evidenceLoad.data?.reviews ??
+    EMPTY_REVIEWS;
 
-          setError(
-            null
-          );
-        }
-      )
-      .catch(
-        (
-          loadError: unknown
-        ) => {
-          if (
-            loadError instanceof DOMException &&
-            loadError.name ===
-              "AbortError"
-          ) {
-            return;
-          }
-
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load investigation findings."
-          );
-        }
-      );
-
-    return () =>
-      controller.abort();
-  }, []);
+  // Disabled while a request runs or a reload is still in flight, so
+  // a finding cannot be reviewed twice from stale data.
+  const busy =
+    action !== null ||
+    findingsLoad.loading;
 
   const acceptedEvidence =
     useMemo(
@@ -258,34 +310,78 @@ export function InvestigationFindings() {
       ]
     );
 
-  async function reload() {
-    const [
-      loadedEvidence,
-      loadedReviews,
-      loadedFindings,
-    ] =
-      await Promise.all([
-        fetchEvidenceCustodyRegistry(),
-        fetchEvidenceReviews(),
-        fetchInvestigationFindings(),
-      ]);
-
-    setEvidence(
-      loadedEvidence
+  const rejectedCount =
+    useMemo(
+      () =>
+        findings.filter(
+          (
+            item
+          ) =>
+            item.status ===
+            "REJECTED"
+        ).length,
+      [
+        findings,
+      ]
     );
 
-    setEvidenceReviews(
-      loadedReviews
+  const filtered =
+    useMemo(
+      () =>
+        sortFindings(
+          filterFindings(
+            findings,
+            filters
+          ),
+          filters.sort
+        ),
+      [
+        findings,
+        filters,
+      ]
     );
 
-    setFindings(
-      loadedFindings
+  const safePage =
+    clampPage(
+      page,
+      filtered.length,
+      PAGE_SIZE
     );
+
+  const pageItems =
+    paginate(
+      filtered,
+      safePage,
+      PAGE_SIZE
+    );
+
+  function update(
+    patch: Partial<FindingFilters>
+  ) {
+    setFilters(
+      (current) => ({
+        ...current,
+        ...patch,
+      })
+    );
+
+    setPage(0);
+  }
+
+  function apply(
+    next: FindingFilters
+  ) {
+    setFilters(
+      next
+    );
+
+    setPage(0);
   }
 
   async function submit() {
     if (
-      !selectedEvidence
+      !selectedEvidence ||
+      busy
     ) {
       return;
     }
@@ -295,40 +391,62 @@ export function InvestigationFindings() {
         "submit"
       );
 
-      setError(
+      setActionFailure(
         null
       );
 
-      await submitInvestigationFinding(
-        selectedEvidence.caseId,
-        findingReference,
-        title,
-        narrative,
-        selectedEvidence.id
+      setNotice(
+        null
       );
 
-      await reload();
+      const created =
+        await submitInvestigationFinding(
+          selectedEvidence.caseId,
+          findingReference.trim(),
+          title.trim(),
+          narrative.trim(),
+          selectedEvidence.id
+        );
 
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
+      if (!isMounted()) {
+        return;
+      }
+
+      setNotice(
+        `Finding ${created.findingReference} (version ${created.findingVersion}) submitted for independent review.`
+      );
+
+      setPage(0);
+
+      findingsLoad.reload();
+    } catch (failure) {
+      if (!isMounted()) {
+        return;
+      }
+
+      setActionFailure(
+        failure instanceof Error
+          ? failure.message
           : "Unable to submit investigation finding."
       );
-
     } finally {
-      setAction(
-        null
-      );
+      if (isMounted()) {
+        setAction(
+          null
+        );
+      }
     }
   }
 
   async function review(
     findingId: string,
+    label: string,
     decision: string
   ) {
     if (
-      !canReview
+      !canReview ||
+      busy ||
+      !reviewNote.trim()
     ) {
       return;
     }
@@ -338,34 +456,60 @@ export function InvestigationFindings() {
         findingId
       );
 
-      setError(
+      setActionFailure(
+        null
+      );
+
+      setNotice(
         null
       );
 
       await reviewInvestigationFinding(
         findingId,
         decision,
-        reviewNote
+        reviewNote.trim()
       );
 
-      await reload();
+      if (!isMounted()) {
+        return;
+      }
 
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
+      setNotice(
+        `${label} ${
+          decision ===
+          "APPROVED"
+            ? "approved"
+            : "rejected"
+        }.`
+      );
+
+      findingsLoad.reload();
+    } catch (failure) {
+      if (!isMounted()) {
+        return;
+      }
+
+      setActionFailure(
+        failure instanceof Error
+          ? failure.message
           : "Unable to review investigation finding."
       );
-
     } finally {
-      setAction(
-        null
-      );
+      if (isMounted()) {
+        setAction(
+          null
+        );
+      }
     }
   }
 
   return (
-    <section className="panel investigation-findings-panel">
+    <section
+      className="panel investigation-findings-panel"
+      aria-busy={
+        findingsLoad.loading
+      }
+    >
       <div className="panel-heading investigation-findings-heading">
         <div>
           <div className="eyebrow">
@@ -390,46 +534,132 @@ export function InvestigationFindings() {
         <div className="investigation-findings-badge">
           <ShieldCheck
             size={13}
+            aria-hidden="true"
           />
 
           Evidence lineage locked
         </div>
       </div>
 
-      {error && (
-        <div className="investigation-findings-error">
-          {error}
+      {actionFailure && (
+        <div
+          className="investigation-findings-error"
+          role="alert"
+        >
+          {actionFailure}
         </div>
       )}
 
-      <div className="investigation-findings-metrics">
-        <Metric
-          label="Findings"
-          value={
-            findings.length
-          }
-        />
+      {notice && (
+        <div
+          className="ui-notice ui-wf-ok"
+          role="status"
+        >
+          <CheckCircle2
+            size={15}
+            aria-hidden="true"
+          />
 
-        <Metric
-          label="Pending"
-          value={
-            pendingFindings.length
-          }
-        />
+          <span>
+            {notice}
+          </span>
+        </div>
+      )}
 
-        <Metric
-          label="Approved"
-          value={
-            approvedFindings.length
-          }
-        />
-      </div>
+      {findingsLoad.error &&
+        !findingsLoad.data && (
+          <ErrorState
+            title="Unable to load investigation findings"
+            message={
+              findingsLoad.error
+            }
+            onRetry={
+              findingsLoad.reload
+            }
+          />
+        )}
+
+      {findingsLoad.error &&
+        findingsLoad.data && (
+          <ErrorState
+            compact
+            title="Could not refresh the findings"
+            message={
+              findingsLoad.error
+            }
+            onRetry={
+              findingsLoad.reload
+            }
+          />
+        )}
+
+      {!findingsLoad.error &&
+        !findingsLoad.data && (
+          <LoadingState label="Loading investigation findings" />
+        )}
+
+      {findingsLoad.data && (
+        <>
+          <div className="investigation-findings-metrics">
+            <Metric
+              label="Findings"
+              value={
+                findings.length
+              }
+            />
+
+            <Metric
+              label="Pending"
+              value={
+                pendingFindings.length
+              }
+            />
+
+            <Metric
+              label="Approved"
+              value={
+                approvedFindings.length
+              }
+            />
+          </div>
+
+          <div className="ui-wf-summary">
+            <StackedBar
+              label="Findings by status"
+              segments={[
+                {
+                  key: "PENDING",
+                  label: "Pending",
+                  value:
+                    pendingFindings.length,
+                  tone: "warning",
+                },
+                {
+                  key: "APPROVED",
+                  label: "Approved",
+                  value:
+                    approvedFindings.length,
+                  tone: "ok",
+                },
+                {
+                  key: "REJECTED",
+                  label: "Rejected",
+                  value:
+                    rejectedCount,
+                  tone: "danger",
+                },
+              ]}
+            />
+          </div>
+        </>
+      )}
 
       <div className="finding-submit-card">
         <div className="finding-card-heading">
           <div>
             <FileText
               size={14}
+              aria-hidden="true"
             />
 
             <strong>
@@ -441,6 +671,43 @@ export function InvestigationFindings() {
             Analyst maker
           </span>
         </div>
+
+        {evidenceLoad.error && (
+          <ErrorState
+            compact
+            title="Accepted evidence is unavailable"
+            message={
+              evidenceLoad.error
+            }
+            onRetry={
+              evidenceLoad.reload
+            }
+          />
+        )}
+
+        {!evidenceLoad.error &&
+          !evidenceLoad.data && (
+            <LoadingState
+              compact
+              label="Loading accepted evidence"
+            />
+          )}
+
+        {evidenceLoad.data &&
+          acceptedEvidence.length ===
+            0 && (
+            <p
+              className="ui-wf-hint"
+              role="status"
+            >
+              No evidence has been
+              accepted for analysis
+              yet. A finding can only
+              cite integrity-verified
+              evidence whose current
+              review accepted it.
+            </p>
+          )}
 
         <div className="finding-submit-grid">
           <label>
@@ -454,7 +721,7 @@ export function InvestigationFindings() {
               }
               disabled={
                 !canSubmit ||
-                action !== null
+                busy
               }
               onChange={(
                 event
@@ -503,7 +770,7 @@ export function InvestigationFindings() {
               }
               disabled={
                 !canSubmit ||
-                action !== null
+                busy
               }
               onChange={(
                 event
@@ -529,7 +796,7 @@ export function InvestigationFindings() {
               }
               disabled={
                 !canSubmit ||
-                action !== null
+                busy
               }
               onChange={(
                 event
@@ -555,7 +822,7 @@ export function InvestigationFindings() {
               }
               disabled={
                 !canSubmit ||
-                action !== null
+                busy
               }
               onChange={(
                 event
@@ -572,7 +839,7 @@ export function InvestigationFindings() {
             className="primary-button"
             disabled={
               !canSubmit ||
-              action !== null ||
+              busy ||
               !selectedEvidence ||
               !findingReference.trim() ||
               !title.trim() ||
@@ -584,6 +851,7 @@ export function InvestigationFindings() {
           >
             <FileCheck2
               size={12}
+              aria-hidden="true"
             />
 
             {action ===
@@ -626,6 +894,41 @@ export function InvestigationFindings() {
         )}
       </div>
 
+      {findingsLoad.data && (
+        <>
+          <FindingTools
+            findings={
+              findings
+            }
+            filters={
+              filters
+            }
+            shown={
+              filtered.length
+            }
+            loading={
+              findingsLoad.loading
+            }
+            onChange={
+              update
+            }
+            onApply={
+              apply
+            }
+            onReload={
+              findingsLoad.reload
+            }
+            onExport={() =>
+              exportRowsAsCsv(
+                "Investigation findings",
+                filtered,
+                FINDING_CSV_COLUMNS
+              )
+            }
+          />
+        </>
+      )}
+
       <div className="finding-review-note">
         <label>
           <span>
@@ -641,7 +944,7 @@ export function InvestigationFindings() {
             }
             disabled={
               !canReview ||
-              action !== null
+              busy
             }
             onChange={(
               event
@@ -654,12 +957,20 @@ export function InvestigationFindings() {
         </label>
       </div>
 
-      <div className="investigation-finding-list">
-        {findings.length ===
-          0 && (
+      <div
+        className={
+          findingsLoad.loading
+            ? "investigation-finding-list ui-list-loading"
+            : "investigation-finding-list"
+        }
+      >
+        {findingsLoad.data &&
+          findings.length ===
+            0 && (
           <div className="investigation-finding-empty">
             <FileText
               size={24}
+              aria-hidden="true"
             />
 
             <strong>
@@ -668,7 +979,31 @@ export function InvestigationFindings() {
           </div>
         )}
 
-        {findings.map(
+        {findings.length >
+          0 &&
+          filtered.length ===
+            0 && (
+            <EmptyState
+              compact
+              title="No findings match these filters"
+              message="Try a different search or clear the filters."
+              action={
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() =>
+                    apply(
+                      DEFAULT_FINDING_FILTERS
+                    )
+                  }
+                >
+                  Reset filters
+                </button>
+              }
+            />
+          )}
+
+        {pageItems.map(
           (
             finding
           ) => (
@@ -698,6 +1033,17 @@ export function InvestigationFindings() {
                     {
                       finding.submittedBy
                     }
+                    <span
+                      className="ui-wf-age"
+                      title={`Submitted ${formatDateTime(
+                        finding.submittedAt
+                      )} UTC`}
+                    >
+                      {" · "}
+                      {formatRelativeTime(
+                        finding.submittedAt
+                      )}
+                    </span>
                   </span>
                 </div>
 
@@ -775,6 +1121,7 @@ export function InvestigationFindings() {
               >
                 <ShieldCheck
                   size={12}
+                  aria-hidden="true"
                 />
 
                 {finding.evidenceLineageCurrent
@@ -785,47 +1132,53 @@ export function InvestigationFindings() {
               {finding.status ===
                 "PENDING" && (
                 <div className="investigation-finding-actions">
-                  <button
-                    type="button"
+                  <ConfirmButton
                     className="secondary-button"
+                    confirmLabel="Yes, reject"
                     disabled={
                       !canReview ||
-                      action !== null
+                      busy ||
+                      !reviewNote.trim()
                     }
-                    onClick={() =>
+                    onConfirm={() =>
                       void review(
                         finding.id,
+                        finding.findingReference,
                         "REJECTED"
                       )
                     }
                   >
                     <XCircle
                       size={12}
+                      aria-hidden="true"
                     />
 
                     Reject
-                  </button>
+                  </ConfirmButton>
 
-                  <button
-                    type="button"
+                  <ConfirmButton
                     className="primary-button"
+                    confirmLabel="Yes, approve"
                     disabled={
                       !canReview ||
-                      action !== null
+                      busy ||
+                      !reviewNote.trim()
                     }
-                    onClick={() =>
+                    onConfirm={() =>
                       void review(
                         finding.id,
+                        finding.findingReference,
                         "APPROVED"
                       )
                     }
                   >
                     <CheckCircle2
                       size={12}
+                      aria-hidden="true"
                     />
 
                     Approve
-                  </button>
+                  </ConfirmButton>
                 </div>
               )}
 
@@ -833,6 +1186,7 @@ export function InvestigationFindings() {
                 <div className="investigation-finding-review-proof">
                   <CheckCircle2
                     size={12}
+                    aria-hidden="true"
                   />
 
                   Reviewed by
@@ -850,6 +1204,22 @@ export function InvestigationFindings() {
           )
         )}
       </div>
+
+      <Pager
+        label="Finding pages"
+        page={
+          safePage
+        }
+        pageSize={
+          PAGE_SIZE
+        }
+        total={
+          filtered.length
+        }
+        onPage={
+          setPage
+        }
+      />
     </section>
   );
 }

@@ -5,6 +5,7 @@ import com.fincrimegraph.platform.service.CaseWorkspaceService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,11 +52,6 @@ public class CaseWorkspaceController {
             @PathVariable
             UUID caseId,
 
-            @RequestParam(
-                    defaultValue = "AML Analyst"
-            )
-            String author,
-
             @RequestParam
             String body,
 
@@ -65,7 +61,7 @@ public class CaseWorkspaceController {
                 workspaceService
                         .addNote(
                                 caseId,
-                                author,
+                                actorOf(authentication),
                                 body
                         );
 
@@ -93,11 +89,6 @@ public class CaseWorkspaceController {
             @RequestParam
             String assignee,
 
-            @RequestParam(
-                    defaultValue = "AML Analyst"
-            )
-            String actor,
-
             Authentication authentication
     ) {
         var result =
@@ -105,7 +96,7 @@ public class CaseWorkspaceController {
                         .assign(
                                 caseId,
                                 assignee,
-                                actor
+                                actorOf(authentication)
                         );
 
         auditService.record(
@@ -122,6 +113,36 @@ public class CaseWorkspaceController {
         return result;
     }
 
+    @PostMapping("/{caseId}/unassign")
+    @PreAuthorize(
+            "hasAnyRole('SENIOR_ANALYST','ADMIN')"
+    )
+    public CaseWorkspaceService.CaseWorkspaceView
+    unassign(
+            @PathVariable
+            UUID caseId,
+
+            Authentication authentication
+    ) {
+        var result =
+                workspaceService
+                        .unassign(
+                                caseId,
+                                actorOf(authentication)
+                        );
+
+        auditService.record(
+                authentication.getName(),
+                "CASE_UNASSIGN",
+                "INVESTIGATION_CASE",
+                caseId.toString(),
+                "SUCCESS",
+                "Case unassigned."
+        );
+
+        return result;
+    }
+
     @PostMapping(
             "/{caseId}/evidence/alerts/{alertId}"
     )
@@ -133,11 +154,6 @@ public class CaseWorkspaceController {
             @PathVariable
             UUID alertId,
 
-            @RequestParam(
-                    defaultValue = "AML Analyst"
-            )
-            String actor,
-
             Authentication authentication
     ) {
         var result =
@@ -145,7 +161,7 @@ public class CaseWorkspaceController {
                         .attachAlert(
                                 caseId,
                                 alertId,
-                                actor
+                                actorOf(authentication)
                         );
 
         auditService.record(
@@ -171,11 +187,6 @@ public class CaseWorkspaceController {
             @PathVariable
             String reference,
 
-            @RequestParam(
-                    defaultValue = "AML Analyst"
-            )
-            String actor,
-
             Authentication authentication
     ) {
         var result =
@@ -183,7 +194,7 @@ public class CaseWorkspaceController {
                         .attachTransaction(
                                 caseId,
                                 reference,
-                                actor
+                                actorOf(authentication)
                         );
 
         auditService.record(
@@ -208,18 +219,13 @@ public class CaseWorkspaceController {
             @PathVariable
             UUID caseId,
 
-            @RequestParam(
-                    defaultValue = "AML Analyst"
-            )
-            String actor,
-
             Authentication authentication
     ) {
         var result =
                 workspaceService
                         .attachCircularGraph(
                                 caseId,
-                                actor
+                                actorOf(authentication)
                         );
 
         auditService.record(
@@ -249,11 +255,6 @@ public class CaseWorkspaceController {
             @RequestParam
             String summary,
 
-            @RequestParam(
-                    defaultValue = "AML Analyst"
-            )
-            String actor,
-
             Authentication authentication
     ) {
         var result =
@@ -262,7 +263,7 @@ public class CaseWorkspaceController {
                                 caseId,
                                 disposition,
                                 summary,
-                                actor
+                                actorOf(authentication)
                         );
 
         auditService.record(
@@ -277,6 +278,48 @@ public class CaseWorkspaceController {
         );
 
         return result;
+    }
+
+    /**
+     * Identity recorded on notes, assignments, evidence and the case
+     * timeline. It always comes from the verified JWT, never from a
+     * request parameter, so a caller cannot attribute an action to
+     * somebody else.
+     */
+    private static String actorOf(
+            Authentication authentication
+    ) {
+        String username =
+                authentication.getName();
+
+        String actor =
+                username;
+
+        if (
+                authentication
+                        instanceof JwtAuthenticationToken token
+        ) {
+            String displayName =
+                    token
+                            .getToken()
+                            .getClaimAsString("name");
+
+            if (
+                    displayName != null
+                            && !displayName.isBlank()
+                            && !displayName.equals(username)
+            ) {
+                actor =
+                        displayName.trim()
+                                + " ("
+                                + username
+                                + ")";
+            }
+        }
+
+        return actor.length() > 160
+                ? actor.substring(0, 160)
+                : actor;
     }
 
     @ResponseStatus(

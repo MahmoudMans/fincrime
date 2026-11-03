@@ -6,18 +6,30 @@ import {
   CircleDotDashed,
   GitCompareArrows,
   LocateFixed,
+  Maximize2,
   Network,
   Radar,
+  RefreshCw,
+  RotateCcw,
   Route,
   ScanSearch,
   ShieldAlert,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import {
+  useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 
+import { GraphResultDetails } from "@/components/gx-graph-result-details";
+import {
+  ErrorState,
+  LoadingState,
+} from "@/components/state-card";
 import {
   fetchAccountNeighborhood,
   fetchCircularFlowGraph,
@@ -25,10 +37,25 @@ import {
   fetchGraphInvestigationSummary,
   fetchMoneyFlowPath,
   type GraphAccountOption,
-  type GraphInvestigationSummary,
   type InvestigationGraph,
-  type InvestigationGraphNode,
 } from "@/lib/api";
+import {
+  describeGraph,
+  investigationModel,
+  layoutKey,
+  transferCounts,
+} from "@/lib/gx-graph";
+import { useLoad } from "@/lib/use-load";
+
+type RunKind = "path" | "neighborhood" | "cycles";
+
+const FAILURES: Record<RunKind, string> = {
+  path: "Unable to investigate path.",
+  neighborhood: "Unable to expand account neighborhood.",
+  cycles: "Unable to discover circular flows.",
+};
+
+const NO_ACCOUNTS: GraphAccountOption[] = [];
 
 export function GraphInvestigationWorkbench() {
   const graphContainerRef =
@@ -37,13 +64,35 @@ export function GraphInvestigationWorkbench() {
   const graphRef =
     useRef<cytoscape.Core | null>(null);
 
-  const [accounts, setAccounts] =
-    useState<GraphAccountOption[]>([]);
+  /** The shape the current layout was computed for. */
+  const laidOutRef = useRef<string | null>(null);
 
-  const [summary, setSummary] =
-    useState<GraphInvestigationSummary | null>(
-      null
-    );
+  /** Marks the action in flight; its answer is dropped if this changed. */
+  const activeRun = useRef<object | null>(null);
+
+  const loadSetup = useCallback(
+    async (signal: AbortSignal) => {
+      const [accountOptions, investigationSummary] =
+        await Promise.all([
+          fetchGraphInvestigationAccounts(signal),
+          fetchGraphInvestigationSummary(signal),
+        ]);
+
+      return { accountOptions, investigationSummary };
+    },
+    []
+  );
+
+  const setup = useLoad(
+    loadSetup,
+    "Unable to load graph investigation data."
+  );
+
+  const accounts =
+    setup.data?.accountOptions ?? NO_ACCOUNTS;
+
+  const summary =
+    setup.data?.investigationSummary ?? null;
 
   const [source, setSource] =
     useState("");
@@ -62,130 +111,81 @@ export function GraphInvestigationWorkbench() {
       null
     );
 
-  const [selectedNode, setSelectedNode] =
-    useState<InvestigationGraphNode | null>(
-      null
-    );
+  /** Changes with every finished action, so the details table starts afresh. */
+  const [runId, setRunId] = useState(0);
 
-  const [loading, setLoading] =
-    useState(false);
-
-  const [error, setError] =
+  const [selectedId, setSelectedId] =
     useState<string | null>(null);
 
+  const [busy, setBusy] =
+    useState<RunKind | null>(null);
+
+  const [error, setError] = useState<{
+    kind: RunKind;
+    message: string;
+  } | null>(null);
+
+  // The pick lists default to the first account and to the demo
+  // target when nothing valid has been chosen yet.
+  const sourceValue = accounts.some(
+    (account) => account.accountNumber === source
+  )
+    ? source
+    : (accounts[0]?.accountNumber ?? "");
+
+  const targetValue = accounts.some(
+    (account) => account.accountNumber === target
+  )
+    ? target
+    : ((
+        accounts.find(
+          (account) =>
+            account.accountNumber === "FCG-100006"
+        ) ?? accounts[1]
+      )?.accountNumber ?? "");
+
+  const loading = busy !== null;
+
+  /** The pick lists and actions wait for the account list. */
+  const ready = setup.data !== null && setup.error === null;
+
+  const model = useMemo(
+    () => investigationModel(result),
+    [result]
+  );
+
+  const elements = model.elements;
+
+  const shapeKey = useMemo(
+    () => layoutKey(model),
+    [model]
+  );
+
+  const hasNodes = model.nodeCount > 0;
+
+  const visibleSelectedNode =
+    result?.nodes.find(
+      (node) => node.id === selectedId
+    ) ?? null;
+
+  useEffect(
+    () => () => {
+      activeRun.current = null;
+    },
+    []
+  );
+
+  // One cytoscape instance for the life of the screen; results are
+  // swapped in place (see the next effect).
   useEffect(() => {
-    const controller =
-      new AbortController();
+    const container = graphContainerRef.current;
 
-    void Promise.all([
-      fetchGraphInvestigationAccounts(
-        controller.signal
-      ),
-      fetchGraphInvestigationSummary(
-        controller.signal
-      ),
-    ])
-      .then(
-        ([
-          accountOptions,
-          investigationSummary,
-        ]) => {
-          setAccounts(accountOptions);
-          setSummary(
-            investigationSummary
-          );
-
-          if (
-            accountOptions.length > 0
-          ) {
-            setSource(
-              accountOptions[0]
-                .accountNumber
-            );
-          }
-
-          if (
-            accountOptions.length > 1
-          ) {
-            const preferred =
-              accountOptions.find(
-                (account) =>
-                  account.accountNumber ===
-                  "FCG-100006"
-              );
-
-            setTarget(
-              preferred?.accountNumber ??
-                accountOptions[1]
-                  .accountNumber
-            );
-          }
-        }
-      )
-      .catch(
-        (loadError: unknown) => {
-          if (
-            loadError instanceof DOMException &&
-            loadError.name === "AbortError"
-          ) {
-            return;
-          }
-
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load graph investigation data."
-          );
-        }
-      );
-
-    return () =>
-      controller.abort();
-  }, []);
-
-  useEffect(() => {
-    if (
-      !graphContainerRef.current
-    ) {
+    if (!container) {
       return;
     }
-
-    graphRef.current?.destroy();
-
-    if (
-      !result ||
-      result.nodes.length === 0
-    ) {
-      graphRef.current = null;
-      return;
-    }
-
-    const elements = [
-      ...result.nodes.map(
-        (node) => ({
-          data: {
-            ...node,
-            label:
-              node.accountNumber,
-          },
-        })
-      ),
-      ...result.edges.map(
-        (edge) => ({
-          data: {
-            ...edge,
-            amountLabel:
-              `${edge.amount.toLocaleString()} ${edge.currency}`,
-          },
-        })
-      ),
-    ];
 
     const graph = cytoscape({
-      container:
-        graphContainerRef.current,
-
-      elements,
+      container,
 
       minZoom: 0.4,
       maxZoom: 2.5,
@@ -269,15 +269,6 @@ export function GraphInvestigationWorkbench() {
           },
         },
       ],
-
-      layout: {
-        name: "cose",
-        animate: false,
-        fit: true,
-        padding: 55,
-        idealEdgeLength: 125,
-        nodeRepulsion: 7200,
-      },
     });
 
     graphRef.current = graph;
@@ -285,115 +276,202 @@ export function GraphInvestigationWorkbench() {
     graph.on(
       "tap",
       "node",
-      (event) => {
-        setSelectedNode(
-          event.target.data() as
-            InvestigationGraphNode
-        );
+      (event: cytoscape.EventObject) => {
+        setSelectedId(String(event.target.id()));
+      }
+    );
+
+    graph.on(
+      "tap",
+      (event: cytoscape.EventObject) => {
+        if (event.target === graph) {
+          setSelectedId(null);
+        }
       }
     );
 
     return () => {
       graph.destroy();
-
-      if (
-        graphRef.current === graph
-      ) {
-        graphRef.current = null;
-      }
+      graphRef.current = null;
+      laidOutRef.current = null;
     };
-  }, [result]);
+  }, []);
 
-  const visibleSelectedNode =
-    selectedNode &&
-    result?.nodes.some(
-      (node) =>
-        node.id ===
-        selectedNode.id
-    )
-      ? selectedNode
-      : null;
+  useEffect(() => {
+    const graph = graphRef.current;
 
-  async function runPath() {
+    if (!graph) {
+      return;
+    }
+
+    graph.json({ elements });
+
+    if (elements.length === 0) {
+      laidOutRef.current = null;
+      return;
+    }
+
+    if (laidOutRef.current !== shapeKey) {
+      laidOutRef.current = shapeKey;
+
+      graph
+        .layout({
+          name: "cose",
+          animate: false,
+          fit: true,
+          padding: 55,
+          idealEdgeLength: 125,
+          nodeRepulsion: 7200,
+        })
+        .run();
+    }
+  }, [elements, shapeKey]);
+
+  useEffect(() => {
+    const graph = graphRef.current;
+
+    if (!graph) {
+      return;
+    }
+
+    graph.elements().unselect();
+
+    if (selectedId) {
+      graph.getElementById(selectedId).select();
+    }
+  }, [selectedId, elements]);
+
+  async function run(kind: RunKind) {
+    if (activeRun.current !== null) {
+      return;
+    }
+
     if (
-      !source ||
-      !target
+      (kind === "path" &&
+        (!sourceValue ||
+          !targetValue ||
+          sourceValue === targetValue)) ||
+      (kind === "neighborhood" && !sourceValue)
     ) {
       return;
     }
 
+    const token = {};
+
+    activeRun.current = token;
+
+    setBusy(kind);
+    setError(null);
+
     try {
-      setLoading(true);
-      setError(null);
-
       const graph =
-        await fetchMoneyFlowPath(
-          source,
-          target,
-          maxHops
-        );
+        kind === "path"
+          ? await fetchMoneyFlowPath(
+              sourceValue,
+              targetValue,
+              maxHops
+            )
+          : kind === "neighborhood"
+            ? await fetchAccountNeighborhood(
+                sourceValue,
+                depth
+              )
+            : await fetchCircularFlowGraph();
 
-      setSelectedNode(null);
+      if (activeRun.current !== token) {
+        return;
+      }
+
+      setSelectedId(null);
       setResult(graph);
+      setRunId((current) => current + 1);
     } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Unable to investigate path."
-      );
+      if (activeRun.current !== token) {
+        return;
+      }
+
+      setError({
+        kind,
+        message:
+          actionError instanceof Error &&
+          actionError.message
+            ? actionError.message
+            : FAILURES[kind],
+      });
     } finally {
-      setLoading(false);
+      if (activeRun.current === token) {
+        activeRun.current = null;
+        setBusy(null);
+      }
     }
   }
 
-  async function runNeighborhood() {
-    if (!source) {
+  function fitGraph() {
+    graphRef.current?.fit(undefined, 45);
+  }
+
+  function zoomBy(factor: number) {
+    const graph = graphRef.current;
+
+    if (!graph) {
       return;
     }
 
-    try {
-      setLoading(true);
-      setError(null);
+    graph.zoom({
+      level: graph.zoom() * factor,
+      renderedPosition: {
+        x: graph.width() / 2,
+        y: graph.height() / 2,
+      },
+    });
+  }
 
-      const graph =
-        await fetchAccountNeighborhood(
-          source,
-          depth
-        );
+  function relayout() {
+    const graph = graphRef.current;
 
-      setSelectedNode(null);
-      setResult(graph);
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Unable to expand account neighborhood."
-      );
-    } finally {
-      setLoading(false);
+    if (!graph || elements.length === 0) {
+      return;
+    }
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    graph
+      .layout({
+        name: "cose",
+        animate: !reduceMotion,
+        animationDuration: 450,
+        fit: true,
+        padding: 55,
+        idealEdgeLength: 125,
+        nodeRepulsion: 7200,
+      })
+      .run();
+  }
+
+  /** Selects an account (from the table) and brings it to the middle of the canvas. */
+  function chooseNode(id: string) {
+    setSelectedId(id);
+
+    const graph = graphRef.current;
+
+    if (graph) {
+      graph.center(graph.getElementById(id));
     }
   }
 
-  async function runCycles() {
-    try {
-      setLoading(true);
-      setError(null);
+  const counts = visibleSelectedNode
+    ? transferCounts(
+        result?.edges ?? [],
+        visibleSelectedNode.id
+      )
+    : null;
 
-      const graph =
-        await fetchCircularFlowGraph();
-
-      setSelectedNode(null);
-      setResult(graph);
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Unable to discover circular flows."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
+  const pathBlocked =
+    !sourceValue ||
+    !targetValue ||
+    sourceValue === targetValue;
 
   return (
     <section className="panel investigation-workbench">
@@ -416,7 +494,7 @@ export function GraphInvestigationWorkbench() {
         </div>
 
         <div className="graph-engine-badge">
-          <Network size={14} />
+          <Network size={14} aria-hidden="true" />
           Neo4j graph analytics
         </div>
       </div>
@@ -464,6 +542,36 @@ export function GraphInvestigationWorkbench() {
         </div>
       )}
 
+      {setup.error !== null && (
+        <ErrorState
+          compact
+          title="Unable to load the investigation tools"
+          message={setup.error}
+          onRetry={setup.reload}
+        />
+      )}
+
+      {setup.error === null &&
+        setup.data === null && (
+          <LoadingState
+            compact
+            label="Loading accounts"
+          />
+        )}
+
+      {setup.data !== null &&
+        setup.error === null &&
+        accounts.length === 0 && (
+          <p className="ui-notice" role="status">
+            <AlertTriangle size={15} aria-hidden="true" />
+            <span>
+              The graph has no accounts yet, so a
+              path or neighborhood cannot be traced.
+              Circular flow discovery still works.
+            </span>
+          </p>
+        )}
+
       <div className="investigation-controls">
         <div className="investigation-control">
           <label htmlFor="graph-source">
@@ -472,7 +580,8 @@ export function GraphInvestigationWorkbench() {
 
           <select
             id="graph-source"
-            value={source}
+            value={sourceValue}
+            disabled={loading || !ready}
             onChange={(event) =>
               setSource(
                 event.target.value
@@ -507,7 +616,8 @@ export function GraphInvestigationWorkbench() {
 
           <select
             id="graph-target"
-            value={target}
+            value={targetValue}
+            disabled={loading || !ready}
             onChange={(event) =>
               setTarget(
                 event.target.value
@@ -543,6 +653,7 @@ export function GraphInvestigationWorkbench() {
           <select
             id="graph-hops"
             value={maxHops}
+            disabled={loading || !ready}
             onChange={(event) =>
               setMaxHops(
                 Number(
@@ -567,20 +678,43 @@ export function GraphInvestigationWorkbench() {
         <button
           type="button"
           className="primary-button investigation-action"
-          disabled={
-            loading ||
-            !source ||
-            !target ||
-            source === target
+          disabled={loading || !ready || pathBlocked}
+          aria-busy={busy === "path"}
+          aria-describedby={
+            sourceValue !== "" &&
+            sourceValue === targetValue
+              ? "graph-path-hint"
+              : undefined
           }
           onClick={() =>
-            void runPath()
+            void run("path")
           }
         >
-          <Route size={15} />
-          Find money path
+          {busy === "path" ? (
+            <RefreshCw
+              size={15}
+              className="ui-spin"
+              aria-hidden="true"
+            />
+          ) : (
+            <Route size={15} aria-hidden="true" />
+          )}
+          {busy === "path"
+            ? "Finding path..."
+            : "Find money path"}
         </button>
       </div>
+
+      {sourceValue !== "" &&
+        sourceValue === targetValue && (
+          <p
+            id="graph-path-hint"
+            className="ui-gx-hint"
+          >
+            Choose two different accounts to trace a
+            money path.
+          </p>
+        )}
 
       <div className="investigation-secondary-controls">
         <div className="depth-control">
@@ -591,6 +725,7 @@ export function GraphInvestigationWorkbench() {
           <select
             id="graph-depth"
             value={depth}
+            disabled={loading || !ready}
             onChange={(event) =>
               setDepth(
                 Number(
@@ -617,35 +752,75 @@ export function GraphInvestigationWorkbench() {
           className="secondary-button graph-tool-button"
           disabled={
             loading ||
-            !source
+            !sourceValue
           }
+          aria-busy={busy === "neighborhood"}
           onClick={() =>
-            void runNeighborhood()
+            void run("neighborhood")
           }
         >
-          <LocateFixed size={14} />
-          Expand neighborhood
+          {busy === "neighborhood" ? (
+            <RefreshCw
+              size={14}
+              className="ui-spin"
+              aria-hidden="true"
+            />
+          ) : (
+            <LocateFixed
+              size={14}
+              aria-hidden="true"
+            />
+          )}
+          {busy === "neighborhood"
+            ? "Expanding..."
+            : "Expand neighborhood"}
         </button>
 
         <button
           type="button"
           className="secondary-button graph-tool-button"
-          disabled={loading}
+          disabled={loading || !ready}
+          aria-busy={busy === "cycles"}
           onClick={() =>
-            void runCycles()
+            void run("cycles")
           }
         >
-          <CircleDotDashed
-            size={14}
-          />
-          Find circular flows
+          {busy === "cycles" ? (
+            <RefreshCw
+              size={14}
+              className="ui-spin"
+              aria-hidden="true"
+            />
+          ) : (
+            <CircleDotDashed
+              size={14}
+              aria-hidden="true"
+            />
+          )}
+          {busy === "cycles"
+            ? "Searching..."
+            : "Find circular flows"}
         </button>
       </div>
 
       {error && (
-        <div className="graph-investigation-error">
-          <AlertTriangle size={15} />
-          {error}
+        <div
+          className="graph-investigation-error"
+          role="alert"
+        >
+          <AlertTriangle size={15} aria-hidden="true" />
+
+          <span>{error.message}</span>
+
+          <button
+            type="button"
+            className="secondary-button ui-gx-error-action"
+            disabled={loading}
+            onClick={() => void run(error.kind)}
+          >
+            <RefreshCw size={13} aria-hidden="true" />
+            Try again
+          </button>
         </div>
       )}
 
@@ -658,10 +833,11 @@ export function GraphInvestigationWorkbench() {
               ? "investigation-result investigation-result-with-inspector"
               : "investigation-result investigation-result-full-width"
         }
+        aria-busy={loading}
       >
         <div className="investigation-result-main">
           <div className="investigation-result-heading">
-            <div>
+            <div role="status">
               <div className="eyebrow">
                 Investigation result
               </div>
@@ -723,36 +899,116 @@ export function GraphInvestigationWorkbench() {
           </div>
 
           <div
-            ref={graphContainerRef}
-            className={
-              !result ||
-              result.nodes.length === 0
-                ? "investigation-graph-canvas investigation-graph-canvas-empty"
-                : "investigation-graph-canvas"
-            }
+            className="ui-gx-canvas-tools"
+            role="group"
+            aria-label="Graph view controls"
           >
-            {(!result ||
-              result.nodes.length ===
-                0) &&
-              !loading && (
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={!hasNodes}
+              onClick={fitGraph}
+            >
+              <Maximize2 size={13} aria-hidden="true" />
+              Fit to view
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={!hasNodes}
+              onClick={() => zoomBy(1.25)}
+            >
+              <ZoomIn size={13} aria-hidden="true" />
+              Zoom in
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={!hasNodes}
+              onClick={() => zoomBy(0.8)}
+            >
+              <ZoomOut size={13} aria-hidden="true" />
+              Zoom out
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={!hasNodes}
+              onClick={relayout}
+            >
+              <RotateCcw size={13} aria-hidden="true" />
+              Re-run layout
+            </button>
+          </div>
+
+          <div className="ui-gx-canvas-wrap">
+            <div
+              ref={graphContainerRef}
+              role="img"
+              aria-label={
+                result && hasNodes
+                  ? `Graph of ${describeGraph(result)}. The accounts and transfers are listed in the result details table below.`
+                  : "Empty graph canvas. Run an investigation to draw a graph."
+              }
+              className={
+                !result ||
+                result.nodes.length === 0
+                  ? "investigation-graph-canvas investigation-graph-canvas-empty"
+                  : "investigation-graph-canvas"
+              }
+            />
+
+            {!loading && !result && (
+              <div className="investigation-graph-placeholder">
+                <ScanSearch size={31} aria-hidden="true" />
+
+                <strong>
+                  Graph ready
+                </strong>
+
+                <span>
+                  Find a money path, expand an account
+                  neighborhood, or identify circular flows
+                  using the controls above.
+                </span>
+              </div>
+            )}
+
+            {!loading &&
+              result &&
+              result.nodes.length === 0 && (
                 <div className="investigation-graph-placeholder">
-                  <ScanSearch size={31} />
+                  <ScanSearch size={31} aria-hidden="true" />
 
                   <strong>
-                    Graph ready
+                    Nothing to draw
                   </strong>
 
                   <span>
-                    Find a money path, expand an account
-                    neighborhood, or identify circular flows
-                    using the controls above.
+                    This investigation returned no
+                    accounts. Try other accounts, a larger
+                    depth or more hops.
                   </span>
                 </div>
               )}
+
+            {loading && (
+              <div className="ui-gx-overlay">
+                <div className="spinner" aria-hidden="true" />
+                <strong>Analyzing graph...</strong>
+              </div>
+            )}
           </div>
         </div>
 
-        <aside className="investigation-inspector">
+        <aside
+          className="investigation-inspector"
+          aria-live="polite"
+          aria-label="Selected account"
+        >
           {visibleSelectedNode ? (
             <>
               <div className="eyebrow">
@@ -800,23 +1056,46 @@ export function GraphInvestigationWorkbench() {
                     .status
                 }
               />
+
+              {counts && (
+                <>
+                  <InspectorRow
+                    label="Outgoing transfers"
+                    value={String(counts.outgoing)}
+                  />
+
+                  <InspectorRow
+                    label="Incoming transfers"
+                    value={String(counts.incoming)}
+                  />
+                </>
+              )}
             </>
           ) : (
             <div className="investigation-inspector-empty">
-              <Network size={25} />
+              <Network size={25} aria-hidden="true" />
 
               <strong>
                 Inspect an account
               </strong>
 
               <span>
-                Click a graph node for
-                account context.
+                Click a graph node, or choose an
+                account in the result details table.
               </span>
             </div>
           )}
         </aside>
       </div>
+
+      {result && result.nodes.length > 0 && (
+        <GraphResultDetails
+          key={runId}
+          graph={result}
+          selectedId={visibleSelectedNode?.id ?? null}
+          onSelect={chooseNode}
+        />
+      )}
     </section>
   );
 }

@@ -1,7 +1,9 @@
 package com.fincrimegraph.platform.web;
 
 import com.fincrimegraph.platform.security.AuthService;
+import com.fincrimegraph.platform.security.LoginThrottledException;
 import com.fincrimegraph.platform.security.TokenService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.AuthenticationException;
@@ -45,6 +47,42 @@ public class AuthController {
             return ResponseEntity.ok(
                     token
             );
+
+        } catch (
+                LoginThrottledException exception
+        ) {
+            long seconds =
+                    exception.getRetryAfterSeconds();
+
+            long minutes =
+                    Math.max(
+                            1L,
+                            (seconds + 59L) / 60L
+                    );
+
+            return ResponseEntity
+                    .status(
+                            HttpStatus
+                                    .TOO_MANY_REQUESTS
+                    )
+                    .header(
+                            HttpHeaders.RETRY_AFTER,
+                            String.valueOf(seconds)
+                    )
+                    .body(
+                            Map.<String, Object>of(
+                                    "error",
+                                    "TOO_MANY_ATTEMPTS",
+                                    "message",
+                                    "Too many failed sign-in attempts. Try again in "
+                                            + minutes
+                                            + (minutes == 1L
+                                            ? " minute."
+                                            : " minutes."),
+                                    "retryAfterSeconds",
+                                    seconds
+                            )
+                    );
 
         } catch (
                 AuthenticationException exception

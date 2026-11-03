@@ -5,16 +5,28 @@ import {
   ArrowRightLeft,
   ArrowUpRight,
   CircleAlert,
-  Search,
   ShieldAlert,
   UserRoundSearch,
   Wallet,
 } from "lucide-react";
 import {
-  useEffect,
+  useCallback,
+  useId,
+  useMemo,
   useState,
 } from "react";
 
+import {
+  AccountToolbar,
+  CustomerToolbar,
+  TransactionToolbar,
+} from "@/components/gx-explorer-toolbars";
+import { Pager } from "@/components/list-tools";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "@/components/state-card";
 import {
   fetchAccount360,
   fetchAccounts,
@@ -22,20 +34,89 @@ import {
   fetchCustomers,
   fetchTransactionExplorer,
   type Account360,
-  type AccountSummary,
   type Customer360,
-  type CustomerSummary,
   type TransactionExplorerItem,
 } from "@/lib/api";
+import { exportRowsAsCsv } from "@/lib/csv";
+import {
+  formatDate,
+  formatDateTime,
+  humanize,
+} from "@/lib/format";
+import {
+  ACCOUNT_COLUMNS,
+  ACCOUNT_DEFAULTS,
+  ALL,
+  CUSTOMER_COLUMNS,
+  CUSTOMER_DEFAULTS,
+  TRANSACTION_COLUMNS,
+  TRANSACTION_DEFAULTS,
+  amountRangeProblem,
+  filterAccounts,
+  filterCustomers,
+  filterTransactions,
+  filtersChanged,
+  normalizeAccountFilters,
+  normalizeCustomerFilters,
+  normalizeTransactionFilters,
+  riskBand,
+  sortAccounts,
+  sortCustomers,
+  sortTransactions,
+  transactionDirection,
+  transactionServerQuery,
+  type AccountFilters,
+  type CustomerFilters,
+  type TransactionFilters,
+} from "@/lib/gx-explorer";
+import { useSettled } from "@/lib/gx-use-settled";
+import {
+  clampPage,
+  countBy,
+  paginate,
+  plural,
+} from "@/lib/list-utils";
+import { useLoad } from "@/lib/use-load";
 
 type ExplorerTab =
   | "customers"
   | "accounts"
   | "transactions";
 
-export function IntelligenceExplorer() {
+const TABS = [
+  {
+    id: "customers",
+    label: "Customers",
+    icon: UserRoundSearch,
+  },
+  {
+    id: "accounts",
+    label: "Accounts",
+    icon: Wallet,
+  },
+  {
+    id: "transactions",
+    label: "Transactions",
+    icon: ArrowRightLeft,
+  },
+] as const;
+
+/** Rows per page: the narrow entity list and the wide table. */
+const LIST_PAGE_SIZE = 15;
+const TABLE_PAGE_SIZE = 25;
+
+export function IntelligenceExplorer({
+  initialTab = "customers",
+  initialQuery = "",
+}: {
+  initialTab?: ExplorerTab;
+  /** Pre-fills the transaction search, e.g. from the command palette. */
+  initialQuery?: string;
+}) {
   const [tab, setTab] =
-    useState<ExplorerTab>("customers");
+    useState<ExplorerTab>(initialTab);
+
+  const baseId = useId();
 
   return (
     <section className="panel intelligence-panel">
@@ -54,191 +135,294 @@ export function IntelligenceExplorer() {
           </p>
         </div>
 
-        <div className="intelligence-tabs">
-          <button
-            type="button"
-            className={
-              tab === "customers"
-                ? "intelligence-tab active"
-                : "intelligence-tab"
-            }
-            onClick={() =>
-              setTab("customers")
-            }
-          >
-            <UserRoundSearch size={14} />
-            Customers
-          </button>
+        <div
+          className="intelligence-tabs"
+          role="tablist"
+          aria-label="Explorer sections"
+          onKeyDown={(event) => {
+            const index = TABS.findIndex(
+              (entry) => entry.id === tab
+            );
 
-          <button
-            type="button"
-            className={
-              tab === "accounts"
-                ? "intelligence-tab active"
-                : "intelligence-tab"
-            }
-            onClick={() =>
-              setTab("accounts")
-            }
-          >
-            <Wallet size={14} />
-            Accounts
-          </button>
+            let next = index;
 
-          <button
-            type="button"
-            className={
-              tab === "transactions"
-                ? "intelligence-tab active"
-                : "intelligence-tab"
+            if (event.key === "ArrowRight") {
+              next = (index + 1) % TABS.length;
+            } else if (event.key === "ArrowLeft") {
+              next =
+                (index + TABS.length - 1) %
+                TABS.length;
+            } else if (event.key === "Home") {
+              next = 0;
+            } else if (event.key === "End") {
+              next = TABS.length - 1;
+            } else {
+              return;
             }
-            onClick={() =>
-              setTab("transactions")
-            }
-          >
-            <ArrowRightLeft size={14} />
-            Transactions
-          </button>
+
+            event.preventDefault();
+            setTab(TABS[next].id);
+
+            document
+              .getElementById(
+                `${baseId}-tab-${TABS[next].id}`
+              )
+              ?.focus();
+          }}
+        >
+          {TABS.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              role="tab"
+              id={`${baseId}-tab-${entry.id}`}
+              aria-selected={tab === entry.id}
+              aria-controls={`${baseId}-panel`}
+              tabIndex={tab === entry.id ? 0 : -1}
+              className={
+                tab === entry.id
+                  ? "intelligence-tab active"
+                  : "intelligence-tab"
+              }
+              onClick={() => setTab(entry.id)}
+            >
+              <entry.icon
+                size={14}
+                aria-hidden="true"
+              />
+              {entry.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {tab === "customers" && (
-        <CustomerExplorer />
-      )}
+      <div
+        role="tabpanel"
+        id={`${baseId}-panel`}
+        aria-labelledby={`${baseId}-tab-${tab}`}
+      >
+        {tab === "customers" && (
+          <CustomerExplorer />
+        )}
 
-      {tab === "accounts" && (
-        <AccountExplorer />
-      )}
+        {tab === "accounts" && (
+          <AccountExplorer />
+        )}
 
-      {tab === "transactions" && (
-        <TransactionExplorer />
-      )}
+        {tab === "transactions" && (
+          <TransactionExplorer
+            initialQuery={initialQuery}
+          />
+        )}
+      </div>
     </section>
   );
 }
 
 function CustomerExplorer() {
-  const [query, setQuery] =
-    useState("");
+  const [filters, setFilters] =
+    useState<CustomerFilters>(CUSTOMER_DEFAULTS);
 
-  const [customers, setCustomers] =
-    useState<CustomerSummary[]>([]);
+  const [page, setPage] = useState(0);
 
   const [selectedId, setSelectedId] =
     useState<string | null>(null);
 
-  const [detail, setDetail] =
-    useState<Customer360 | null>(null);
+  // The backend answers the text search; the box is applied after
+  // a short pause so typing does not fire a request per keystroke.
+  const [query, setQuery] = useSettled(filters.q);
 
-  const [loading, setLoading] =
-    useState(true);
+  const fetchRows = useCallback(
+    (signal: AbortSignal) =>
+      fetchCustomers(query.trim(), signal),
+    [query]
+  );
 
-  useEffect(() => {
-    const controller =
-      new AbortController();
+  const load = useLoad(
+    fetchRows,
+    "Unable to load customers."
+  );
 
-    const timer = window.setTimeout(
-      () => {
-        void fetchCustomers(
-          query,
-          controller.signal
-        )
-          .then((items) => {
-            setCustomers(items);
+  const rows = useMemo(
+    () =>
+      load.error === null ? (load.data ?? []) : [],
+    [load.data, load.error]
+  );
 
-            setSelectedId(
-              (current) => {
-                if (
-                  current &&
-                  items.some(
-                    (item) =>
-                      item.id === current
-                  )
-                ) {
-                  return current;
-                }
+  const countries = useMemo(
+    () => rows.map((row) => row.countryCode),
+    [rows]
+  );
 
-                return items[0]?.id ?? null;
-              }
-            );
-          })
-          .finally(
-            () => setLoading(false)
-          );
-      },
-      180
-    );
+  const riskFacet = useMemo(
+    () =>
+      filterCustomers(rows, {
+        ...filters,
+        risk: ALL,
+      }),
+    [rows, filters]
+  );
 
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [query]);
+  const riskCounts = useMemo(
+    () =>
+      countBy(riskFacet, (row) =>
+        row.riskTier.toUpperCase()
+      ),
+    [riskFacet]
+  );
 
-  useEffect(() => {
-    if (!selectedId) {
-      return;
-    }
+  const visible = useMemo(
+    () =>
+      sortCustomers(
+        filterCustomers(rows, filters),
+        filters.sort
+      ),
+    [rows, filters]
+  );
 
-    const controller =
-      new AbortController();
+  const active =
+    visible.find((row) => row.id === selectedId) ??
+    visible[0] ??
+    null;
 
-    void fetchCustomer360(
-      selectedId,
-      controller.signal
-    )
-      .then(setDetail)
-      .catch(() => undefined);
+  const safePage = clampPage(
+    page,
+    visible.length,
+    LIST_PAGE_SIZE
+  );
 
-    return () => controller.abort();
-  }, [selectedId]);
+  const pageRows = paginate(
+    visible,
+    safePage,
+    LIST_PAGE_SIZE
+  );
 
-  const visibleDetail =
-    selectedId &&
-    detail?.summary.id === selectedId
-      ? detail
-      : null;
+  const hasFilters = filtersChanged(
+    filters,
+    CUSTOMER_DEFAULTS
+  );
+
+  function update(patch: Partial<CustomerFilters>) {
+    setFilters((current) => ({
+      ...current,
+      ...patch,
+    }));
+    setPage(0);
+  }
+
+  function reset() {
+    setFilters(CUSTOMER_DEFAULTS);
+    setQuery("");
+    setPage(0);
+  }
+
+  function applyView(value: CustomerFilters) {
+    const next = normalizeCustomerFilters(value);
+
+    setFilters(next);
+    setQuery(next.q);
+    setPage(0);
+  }
 
   return (
-    <div className="intelligence-layout">
-      <aside className="entity-list-panel">
-        <div className="entity-search">
-          <Search size={14} />
+    <>
+      <CustomerToolbar
+        filters={filters}
+        onChange={update}
+        onReset={reset}
+        onApplyView={applyView}
+        onExport={() =>
+          exportRowsAsCsv(
+            "Customers",
+            visible,
+            CUSTOMER_COLUMNS
+          )
+        }
+        summary={{
+          shown: visible.length,
+          total: rows.length,
+          hasFilters,
+          pending: load.data === null,
+        }}
+        riskCounts={riskCounts}
+        riskTotal={riskFacet.length}
+        countries={countries}
+      />
 
-          <input
-            value={query}
-            onChange={(event) =>
-              setQuery(
-                event.target.value
-              )
+      <div
+        className="intelligence-layout"
+        aria-busy={load.loading}
+      >
+        <aside
+          className="entity-list-panel"
+          aria-label="Customers"
+        >
+          <div
+            className={
+              load.loading && rows.length > 0
+                ? "entity-list ui-list-loading"
+                : "entity-list"
             }
-            placeholder="Search customers..."
-          />
-        </div>
-
-        <div className="entity-list">
-          {loading && (
-            <div className="entity-empty">
-              Loading customers...
-            </div>
-          )}
-
-          {!loading &&
-            customers.length === 0 && (
-              <div className="entity-empty">
-                No customers found.
-              </div>
+          >
+            {load.error !== null && (
+              <ErrorState
+                compact
+                title="Unable to load customers"
+                message={load.error}
+                onRetry={load.reload}
+              />
             )}
 
-          {customers.map(
-            (customer) => (
+            {load.error === null &&
+              load.data === null && (
+                <LoadingState
+                  compact
+                  label="Loading customers"
+                />
+              )}
+
+            {load.error === null &&
+              load.data !== null &&
+              visible.length === 0 && (
+                <EmptyState
+                  compact
+                  title={
+                    hasFilters
+                      ? "No customers match these filters"
+                      : "No customers yet"
+                  }
+                  message={
+                    hasFilters
+                      ? "Try a different search or clear the filters."
+                      : "Customers appear here once data has been ingested."
+                  }
+                  action={
+                    hasFilters ? (
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={reset}
+                      >
+                        Reset filters
+                      </button>
+                    ) : undefined
+                  }
+                />
+              )}
+
+            {pageRows.map((customer) => (
               <button
                 type="button"
                 key={customer.id}
                 className={
-                  selectedId === customer.id
+                  active?.id === customer.id
                     ? "entity-row selected"
                     : "entity-row"
+                }
+                aria-current={
+                  active?.id === customer.id
+                    ? "true"
+                    : undefined
                 }
                 onClick={() =>
                   setSelectedId(customer.id)
@@ -267,28 +451,85 @@ function CustomerExplorer() {
 
                   <small>
                     {customer.openAlerts}
-                    {" "}alerts
+                    {" "}
+                    {plural(
+                      customer.openAlerts,
+                      "alert"
+                    )}
                   </small>
                 </div>
               </button>
-            )
+            ))}
+          </div>
+
+          <Pager
+            page={safePage}
+            pageSize={LIST_PAGE_SIZE}
+            total={visible.length}
+            onPage={setPage}
+            label="Customer pages"
+          />
+        </aside>
+
+        <div className="entity-detail">
+          {active ? (
+            <CustomerDetailPane
+              key={active.id}
+              id={active.id}
+            />
+          ) : (
+            <ExplorerPlaceholder
+              label={
+                load.data === null
+                  ? "Select a customer"
+                  : "No customer selected"
+              }
+            />
           )}
         </div>
-      </aside>
-
-      <div className="entity-detail">
-        {!visibleDetail ? (
-          <ExplorerPlaceholder
-            label="Select a customer"
-          />
-        ) : (
-          <CustomerDetail
-            detail={visibleDetail}
-          />
-        )}
       </div>
-    </div>
+    </>
   );
+}
+
+/** Loads one customer profile; keyed by id so that it never shows another one. */
+function CustomerDetailPane({
+  id,
+}: {
+  id: string;
+}) {
+  const fetchDetail = useCallback(
+    (signal: AbortSignal) =>
+      fetchCustomer360(id, signal),
+    [id]
+  );
+
+  const { data, error, reload } = useLoad(
+    fetchDetail,
+    "Unable to load the customer profile."
+  );
+
+  if (error !== null) {
+    return (
+      <ErrorState
+        compact
+        title="Unable to load this customer"
+        message={error}
+        onRetry={reload}
+      />
+    );
+  }
+
+  if (!data) {
+    return (
+      <LoadingState
+        compact
+        label="Loading customer"
+      />
+    );
+  }
+
+  return <CustomerDetail detail={data} />;
 }
 
 function CustomerDetail({
@@ -364,6 +605,7 @@ function CustomerDetail({
         <DetailBlock
           title="Accounts"
           count={detail.accounts.length}
+          empty="No accounts yet."
         >
           {detail.accounts.map(
             (account) => (
@@ -395,7 +637,11 @@ function CustomerDetail({
 
                   <span>
                     {account.openAlerts}
-                    {" "}alerts
+                    {" "}
+                    {plural(
+                      account.openAlerts,
+                      "alert"
+                    )}
                   </span>
                 </div>
               </div>
@@ -408,6 +654,7 @@ function CustomerDetail({
           count={
             detail.counterparties.length
           }
+          empty="No counterparties yet."
         >
           {detail.counterparties.map(
             (counterparty) => (
@@ -433,7 +680,12 @@ function CustomerDetail({
                       counterparty
                         .transactionCount
                     }
-                    {" "}transactions
+                    {" "}
+                    {plural(
+                      counterparty
+                        .transactionCount,
+                      "transaction"
+                    )}
                   </span>
                 </div>
 
@@ -463,6 +715,13 @@ function CustomerDetail({
         transactions={
           detail.recentTransactions
         }
+        ownAccountIds={
+          new Set(
+            detail.accounts.map(
+              (account) => account.id
+            )
+          )
+        }
       />
 
       <AlertSnapshotList
@@ -473,115 +732,226 @@ function CustomerDetail({
 }
 
 function AccountExplorer() {
-  const [query, setQuery] =
-    useState("");
+  const [filters, setFilters] =
+    useState<AccountFilters>(ACCOUNT_DEFAULTS);
 
-  const [accounts, setAccounts] =
-    useState<AccountSummary[]>([]);
+  const [page, setPage] = useState(0);
 
   const [selectedId, setSelectedId] =
     useState<string | null>(null);
 
-  const [detail, setDetail] =
-    useState<Account360 | null>(null);
+  const [query, setQuery] = useSettled(filters.q);
 
-  useEffect(() => {
-    const controller =
-      new AbortController();
+  const fetchRows = useCallback(
+    (signal: AbortSignal) =>
+      fetchAccounts(query.trim(), signal),
+    [query]
+  );
 
-    const timer = window.setTimeout(
-      () => {
-        void fetchAccounts(
-          query,
-          controller.signal
-        ).then(
-          (items) => {
-            setAccounts(items);
+  const load = useLoad(
+    fetchRows,
+    "Unable to load accounts."
+  );
 
-            setSelectedId(
-              (current) => {
-                if (
-                  current &&
-                  items.some(
-                    (item) =>
-                      item.id === current
-                  )
-                ) {
-                  return current;
-                }
+  const rows = useMemo(
+    () =>
+      load.error === null ? (load.data ?? []) : [],
+    [load.data, load.error]
+  );
 
-                return items[0]?.id ?? null;
-              }
-            );
-          }
-        );
-      },
-      180
-    );
+  const currencies = useMemo(
+    () => rows.map((row) => row.currency),
+    [rows]
+  );
 
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [query]);
+  const statusFacet = useMemo(
+    () =>
+      filterAccounts(rows, {
+        ...filters,
+        status: ALL,
+      }),
+    [rows, filters]
+  );
 
-  useEffect(() => {
-    if (!selectedId) {
-      return;
-    }
+  const statusCounts = useMemo(
+    () =>
+      countBy(statusFacet, (row) =>
+        row.status.toUpperCase()
+      ),
+    [statusFacet]
+  );
 
-    const controller =
-      new AbortController();
+  const riskFacet = useMemo(
+    () =>
+      filterAccounts(rows, {
+        ...filters,
+        risk: ALL,
+      }),
+    [rows, filters]
+  );
 
-    void fetchAccount360(
-      selectedId,
-      controller.signal
-    )
-      .then(setDetail)
-      .catch(() => undefined);
+  const riskCounts = useMemo(
+    () =>
+      countBy(riskFacet, (row) =>
+        row.customerRiskTier.toUpperCase()
+      ),
+    [riskFacet]
+  );
 
-    return () => controller.abort();
-  }, [selectedId]);
+  const visible = useMemo(
+    () =>
+      sortAccounts(
+        filterAccounts(rows, filters),
+        filters.sort
+      ),
+    [rows, filters]
+  );
 
-  const visibleDetail =
-    selectedId &&
-    detail?.summary.id === selectedId
-      ? detail
-      : null;
+  const active =
+    visible.find((row) => row.id === selectedId) ??
+    visible[0] ??
+    null;
+
+  const safePage = clampPage(
+    page,
+    visible.length,
+    LIST_PAGE_SIZE
+  );
+
+  const pageRows = paginate(
+    visible,
+    safePage,
+    LIST_PAGE_SIZE
+  );
+
+  const hasFilters = filtersChanged(
+    filters,
+    ACCOUNT_DEFAULTS
+  );
+
+  function update(patch: Partial<AccountFilters>) {
+    setFilters((current) => ({
+      ...current,
+      ...patch,
+    }));
+    setPage(0);
+  }
+
+  function reset() {
+    setFilters(ACCOUNT_DEFAULTS);
+    setQuery("");
+    setPage(0);
+  }
+
+  function applyView(value: AccountFilters) {
+    const next = normalizeAccountFilters(value);
+
+    setFilters(next);
+    setQuery(next.q);
+    setPage(0);
+  }
 
   return (
-    <div className="intelligence-layout">
-      <aside className="entity-list-panel">
-        <div className="entity-search">
-          <Search size={14} />
+    <>
+      <AccountToolbar
+        filters={filters}
+        onChange={update}
+        onReset={reset}
+        onApplyView={applyView}
+        onExport={() =>
+          exportRowsAsCsv(
+            "Accounts",
+            visible,
+            ACCOUNT_COLUMNS
+          )
+        }
+        summary={{
+          shown: visible.length,
+          total: rows.length,
+          hasFilters,
+          pending: load.data === null,
+        }}
+        riskCounts={riskCounts}
+        riskTotal={riskFacet.length}
+        statusCounts={statusCounts}
+        statusTotal={statusFacet.length}
+        currencies={currencies}
+      />
 
-          <input
-            value={query}
-            onChange={(event) =>
-              setQuery(
-                event.target.value
-              )
+      <div
+        className="intelligence-layout"
+        aria-busy={load.loading}
+      >
+        <aside
+          className="entity-list-panel"
+          aria-label="Accounts"
+        >
+          <div
+            className={
+              load.loading && rows.length > 0
+                ? "entity-list ui-list-loading"
+                : "entity-list"
             }
-            placeholder="Search accounts..."
-          />
-        </div>
+          >
+            {load.error !== null && (
+              <ErrorState
+                compact
+                title="Unable to load accounts"
+                message={load.error}
+                onRetry={load.reload}
+              />
+            )}
 
-        <div className="entity-list">
-          {accounts.length === 0 && (
-            <div className="entity-empty">
-              No accounts found.
-            </div>
-          )}
+            {load.error === null &&
+              load.data === null && (
+                <LoadingState
+                  compact
+                  label="Loading accounts"
+                />
+              )}
 
-          {accounts.map(
-            (account) => (
+            {load.error === null &&
+              load.data !== null &&
+              visible.length === 0 && (
+                <EmptyState
+                  compact
+                  title={
+                    hasFilters
+                      ? "No accounts match these filters"
+                      : "No accounts yet"
+                  }
+                  message={
+                    hasFilters
+                      ? "Try a different search or clear the filters."
+                      : "Accounts appear here once data has been ingested."
+                  }
+                  action={
+                    hasFilters ? (
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={reset}
+                      >
+                        Reset filters
+                      </button>
+                    ) : undefined
+                  }
+                />
+              )}
+
+            {pageRows.map((account) => (
               <button
                 type="button"
                 key={account.id}
                 className={
-                  selectedId === account.id
+                  active?.id === account.id
                     ? "entity-row selected"
                     : "entity-row"
+                }
+                aria-current={
+                  active?.id === account.id
+                    ? "true"
+                    : undefined
                 }
                 onClick={() =>
                   setSelectedId(account.id)
@@ -596,6 +966,8 @@ function AccountExplorer() {
                     {account.customerName}
                     {" · "}
                     {account.currency}
+                    {" · "}
+                    {humanize(account.status)}
                   </span>
                 </div>
 
@@ -613,28 +985,85 @@ function AccountExplorer() {
 
                   <small>
                     {account.openAlerts}
-                    {" "}alerts
+                    {" "}
+                    {plural(
+                      account.openAlerts,
+                      "alert"
+                    )}
                   </small>
                 </div>
               </button>
-            )
+            ))}
+          </div>
+
+          <Pager
+            page={safePage}
+            pageSize={LIST_PAGE_SIZE}
+            total={visible.length}
+            onPage={setPage}
+            label="Account pages"
+          />
+        </aside>
+
+        <div className="entity-detail">
+          {active ? (
+            <AccountDetailPane
+              key={active.id}
+              id={active.id}
+            />
+          ) : (
+            <ExplorerPlaceholder
+              label={
+                load.data === null
+                  ? "Select an account"
+                  : "No account selected"
+              }
+            />
           )}
         </div>
-      </aside>
-
-      <div className="entity-detail">
-        {!visibleDetail ? (
-          <ExplorerPlaceholder
-            label="Select an account"
-          />
-        ) : (
-          <AccountDetail
-            detail={visibleDetail}
-          />
-        )}
       </div>
-    </div>
+    </>
   );
+}
+
+/** Loads one account profile; keyed by id so that it never shows another one. */
+function AccountDetailPane({
+  id,
+}: {
+  id: string;
+}) {
+  const fetchDetail = useCallback(
+    (signal: AbortSignal) =>
+      fetchAccount360(id, signal),
+    [id]
+  );
+
+  const { data, error, reload } = useLoad(
+    fetchDetail,
+    "Unable to load the account profile."
+  );
+
+  if (error !== null) {
+    return (
+      <ErrorState
+        compact
+        title="Unable to load this account"
+        message={error}
+        onRetry={reload}
+      />
+    );
+  }
+
+  if (!data) {
+    return (
+      <LoadingState
+        compact
+        label="Loading account"
+      />
+    );
+  }
+
+  return <AccountDetail detail={data} />;
 }
 
 function AccountDetail({
@@ -754,6 +1183,7 @@ function AccountDetail({
         count={
           detail.counterparties.length
         }
+        empty="No counterparties yet."
       >
         {detail.counterparties.map(
           (counterparty) => (
@@ -779,7 +1209,12 @@ function AccountDetail({
                     counterparty
                       .transactionCount
                   }
-                  {" "}transactions
+                  {" "}
+                  {plural(
+                    counterparty
+                      .transactionCount,
+                    "transaction"
+                  )}
                 </span>
               </div>
 
@@ -808,6 +1243,9 @@ function AccountDetail({
         transactions={
           detail.recentTransactions
         }
+        ownAccountIds={
+          new Set([summary.id])
+        }
       />
 
       <AlertSnapshotList
@@ -817,364 +1255,479 @@ function AccountDetail({
   );
 }
 
-function TransactionExplorer() {
-  const [query, setQuery] =
-    useState("");
+function TransactionExplorer({
+  initialQuery = "",
+}: {
+  initialQuery?: string;
+}) {
+  const [filters, setFilters] =
+    useState<TransactionFilters>({
+      ...TRANSACTION_DEFAULTS,
+      q: initialQuery,
+    });
 
-  const [channel, setChannel] =
-    useState("");
+  const [page, setPage] = useState(0);
 
-  const [status, setStatus] =
-    useState("");
+  // The backend answers the text search, channel, status and amount
+  // range. The typed fields are applied after a short pause.
+  const [query, setQuery] = useSettled(filters.q);
+  const [min, setMin] = useSettled(filters.min);
+  const [max, setMax] = useSettled(filters.max);
 
-  const [minAmount, setMinAmount] =
-    useState("");
+  const { channel, status } = filters;
 
-  const [maxAmount, setMaxAmount] =
-    useState("");
+  const fetchRows = useCallback(
+    (signal: AbortSignal) =>
+      fetchTransactionExplorer(
+        transactionServerQuery({
+          q: query,
+          channel,
+          status,
+          min,
+          max,
+        }),
+        signal
+      ),
+    [query, channel, status, min, max]
+  );
 
-  const [transactions, setTransactions] =
-    useState<
-      TransactionExplorerItem[]
-    >([]);
+  const load = useLoad(
+    fetchRows,
+    "Unable to load transactions."
+  );
 
-  useEffect(() => {
-    const controller =
-      new AbortController();
+  const rows = useMemo(
+    () =>
+      load.error === null ? (load.data ?? []) : [],
+    [load.data, load.error]
+  );
 
-    const timer = window.setTimeout(
-      () => {
-        void fetchTransactionExplorer(
-          {
-            query,
-            channel,
-            status,
-            minAmount,
-            maxAmount,
-          },
-          controller.signal
-        )
-          .then(setTransactions)
-          .catch(() => undefined);
-      },
-      180
-    );
+  const countries = useMemo(
+    () =>
+      rows.map(
+        (transaction) =>
+          transaction.destinationCountry
+      ),
+    [rows]
+  );
 
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [
-    query,
-    channel,
-    status,
-    minAmount,
-    maxAmount,
-  ]);
+  const riskFacet = useMemo(
+    () =>
+      filterTransactions(rows, {
+        ...filters,
+        risk: ALL,
+      }),
+    [rows, filters]
+  );
+
+  const riskCounts = useMemo(
+    () =>
+      countBy(riskFacet, (transaction) =>
+        riskBand(transaction.riskScore)
+      ),
+    [riskFacet]
+  );
+
+  const visible = useMemo(
+    () =>
+      sortTransactions(
+        filterTransactions(rows, filters),
+        filters.sort
+      ),
+    [rows, filters]
+  );
+
+  const safePage = clampPage(
+    page,
+    visible.length,
+    TABLE_PAGE_SIZE
+  );
+
+  const pageRows = paginate(
+    visible,
+    safePage,
+    TABLE_PAGE_SIZE
+  );
+
+  const hasFilters = filtersChanged(
+    filters,
+    TRANSACTION_DEFAULTS
+  );
+
+  const rangeProblem = amountRangeProblem(
+    filters.min,
+    filters.max
+  );
+
+  function update(
+    patch: Partial<TransactionFilters>
+  ) {
+    setFilters((current) => ({
+      ...current,
+      ...patch,
+    }));
+    setPage(0);
+  }
+
+  function reset() {
+    setFilters(TRANSACTION_DEFAULTS);
+    setQuery("");
+    setMin("");
+    setMax("");
+    setPage(0);
+  }
+
+  function applyView(value: TransactionFilters) {
+    const next =
+      normalizeTransactionFilters(value);
+
+    setFilters(next);
+    setQuery(next.q);
+    setMin(next.min);
+    setMax(next.max);
+    setPage(0);
+  }
 
   return (
-    <div className="transaction-explorer">
-      <div className="transaction-filters">
-        <label className="filter-search">
-          <Search size={14} />
+    <div className="transaction-explorer ui-gx-transactions">
+      <TransactionToolbar
+        filters={filters}
+        onChange={update}
+        onReset={reset}
+        onApplyView={applyView}
+        onExport={() =>
+          exportRowsAsCsv(
+            "Transactions",
+            visible,
+            TRANSACTION_COLUMNS
+          )
+        }
+        summary={{
+          shown: visible.length,
+          total: rows.length,
+          hasFilters,
+          pending: load.data === null,
+        }}
+        riskCounts={riskCounts}
+        riskTotal={riskFacet.length}
+        countries={countries}
+      />
 
-          <input
-            value={query}
-            onChange={(event) =>
-              setQuery(
-                event.target.value
-              )
-            }
-            placeholder="Reference, account, customer..."
+      {load.error !== null && (
+        <ErrorState
+          compact
+          title="Unable to load transactions"
+          message={load.error}
+          onRetry={load.reload}
+        />
+      )}
+
+      {load.error === null &&
+        load.data === null && (
+          <LoadingState
+            compact
+            label="Loading transactions"
           />
-        </label>
+        )}
 
-        <select
-          value={channel}
-          onChange={(event) =>
-            setChannel(
-              event.target.value
-            )
-          }
-        >
-          <option value="">
-            All channels
-          </option>
-          <option value="WIRE">
-            Wire
-          </option>
-          <option value="BANK_TRANSFER">
-            Bank transfer
-          </option>
-          <option value="CARD">
-            Card
-          </option>
-          <option value="CASH_DEPOSIT">
-            Cash deposit
-          </option>
-        </select>
+      {load.error === null &&
+        load.data !== null &&
+        visible.length === 0 && (
+          <EmptyState
+            compact
+            title={
+              hasFilters
+                ? "No transactions match these filters"
+                : "No transactions yet"
+            }
+            message={
+              rangeProblem ??
+              (hasFilters
+                ? "Try a different search or clear the filters."
+                : "Transactions appear here once data has been ingested.")
+            }
+            action={
+              hasFilters ? (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={reset}
+                >
+                  Reset filters
+                </button>
+              ) : undefined
+            }
+          />
+        )}
 
-        <select
-          value={status}
-          onChange={(event) =>
-            setStatus(
-              event.target.value
-            )
-          }
-        >
-          <option value="">
-            All statuses
-          </option>
-          <option value="SETTLED">
-            Settled
-          </option>
-          <option value="REVIEW">
-            Review
-          </option>
-          <option value="PENDING">
-            Pending
-          </option>
-        </select>
+      {load.error === null &&
+        visible.length > 0 && (
+          <div
+            className={
+              load.loading
+                ? "table-scroll ui-list-loading"
+                : "table-scroll"
+            }
+            aria-busy={load.loading}
+          >
+            <table className="intelligence-table">
+              <caption className="ui-visually-hidden">
+                Transactions matching the current
+                filters
+              </caption>
 
-        <input
-          type="number"
-          min="0"
-          value={minAmount}
-          onChange={(event) =>
-            setMinAmount(
-              event.target.value
-            )
-          }
-          placeholder="Min amount"
-        />
-
-        <input
-          type="number"
-          min="0"
-          value={maxAmount}
-          onChange={(event) =>
-            setMaxAmount(
-              event.target.value
-            )
-          }
-          placeholder="Max amount"
-        />
-      </div>
-
-      <div className="transaction-result-count">
-        <ArrowRightLeft size={13} />
-        {transactions.length}
-        {" "}matching transactions
-      </div>
-
-      <div className="table-scroll">
-        <table className="intelligence-table">
-          <thead>
-            <tr>
-              <th>Reference</th>
-              <th>Source</th>
-              <th>Destination</th>
-              <th>Amount</th>
-              <th>Channel</th>
-              <th>Risk</th>
-              <th>Why</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {transactions.map(
-              (transaction) => (
-                <tr key={transaction.id}>
-                  <td>
-                    <span className="transaction-reference">
-                      {transaction.reference}
-                    </span>
-
-                    <small className="transaction-date">
-                      {formatDateTime(
-                        transaction.occurredAt
-                      )}
-                    </small>
-                  </td>
-
-                  <td>
-                    <div className="party-cell">
-                      <strong>
-                        {
-                          transaction
-                            .sourceCustomer
-                        }
-                      </strong>
-
-                      <span>
-                        {
-                          transaction
-                            .sourceAccount
-                        }
-                      </span>
-                    </div>
-                  </td>
-
-                  <td>
-                    <div className="party-cell">
-                      <strong>
-                        {
-                          transaction
-                            .destinationCustomer
-                        }
-                      </strong>
-
-                      <span>
-                        {
-                          transaction
-                            .destinationAccount
-                        }
-                      </span>
-                    </div>
-                  </td>
-
-                  <td className="amount-cell">
-                    {money(
-                      transaction.amount,
-                      transaction.currency
-                    )}
-                  </td>
-
-                  <td>
-                    <span className="channel-pill">
-                      {humanize(
-                        transaction.channel
-                      )}
-                    </span>
-                  </td>
-
-                  <td>
-                    <span
-                      className={
-                        transaction.riskScore >=
-                        70
-                          ? "risk-number high"
-                          : transaction.riskScore >=
-                              40
-                            ? "risk-number medium"
-                            : "risk-number low"
-                      }
-                    >
-                      {
-                        transaction
-                          .riskScore
-                      }
-                    </span>
-                  </td>
-
-                  <td>
-                    <div className="risk-reasons">
-                      {transaction
-                        .riskReasons
-                        .slice(0, 2)
-                        .map(
-                          (reason) => (
-                            <span
-                              key={reason}
-                            >
-                              {reason}
-                            </span>
-                          )
-                        )}
-
-                      {transaction
-                        .riskReasons
-                        .length === 0 && (
-                        <span>
-                          Baseline activity
-                        </span>
-                      )}
-                    </div>
-                  </td>
+              <thead>
+                <tr>
+                  <th scope="col">Reference</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">Destination</th>
+                  <th scope="col">Amount</th>
+                  <th scope="col">Channel</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Risk</th>
+                  <th scope="col">Why</th>
                 </tr>
-              )
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+
+              <tbody>
+                {pageRows.map(
+                  (transaction) => (
+                    <TransactionRow
+                      key={transaction.id}
+                      transaction={transaction}
+                    />
+                  )
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+      <Pager
+        page={safePage}
+        pageSize={TABLE_PAGE_SIZE}
+        total={visible.length}
+        onPage={setPage}
+        label="Transaction pages"
+      />
     </div>
   );
 }
 
+function TransactionRow({
+  transaction,
+}: {
+  transaction: TransactionExplorerItem;
+}) {
+  const band = riskBand(transaction.riskScore);
+
+  return (
+    <tr>
+      <td>
+        <span className="transaction-reference">
+          {transaction.reference}
+        </span>
+
+        <small className="transaction-date">
+          {formatDateTime(transaction.occurredAt)}
+        </small>
+      </td>
+
+      <td>
+        <div className="party-cell">
+          <strong>
+            {transaction.sourceCustomer}
+          </strong>
+
+          <span>
+            {transaction.sourceAccount}
+          </span>
+        </div>
+      </td>
+
+      <td>
+        <div className="party-cell">
+          <strong>
+            {transaction.destinationCustomer}
+          </strong>
+
+          <span>
+            {transaction.destinationAccount}
+            {transaction.destinationCountry
+              ? ` · ${transaction.destinationCountry}`
+              : ""}
+          </span>
+        </div>
+      </td>
+
+      <td className="amount-cell">
+        {money(
+          transaction.amount,
+          transaction.currency
+        )}
+      </td>
+
+      <td>
+        <span className="channel-pill">
+          {humanize(transaction.channel)}
+        </span>
+      </td>
+
+      <td>
+        <span className="channel-pill">
+          {humanize(transaction.status)}
+        </span>
+      </td>
+
+      <td>
+        <span
+          className={
+            band === "HIGH"
+              ? "risk-number high"
+              : band === "MEDIUM"
+                ? "risk-number medium"
+                : "risk-number low"
+          }
+        >
+          {transaction.riskScore}
+
+          <span className="ui-visually-hidden">
+            {` (${humanize(band)} risk)`}
+          </span>
+        </span>
+      </td>
+
+      <td>
+        <div className="risk-reasons">
+          {transaction.riskReasons
+            .slice(0, 2)
+            .map((reason) => (
+              <span key={reason}>{reason}</span>
+            ))}
+
+          {transaction.riskReasons.length > 2 && (
+            <span
+              title={transaction.riskReasons
+                .slice(2)
+                .join("; ")}
+            >
+              {`+${transaction.riskReasons.length - 2} more`}
+            </span>
+          )}
+
+          {transaction.riskReasons.length === 0 && (
+            <span>Baseline activity</span>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+const DIRECTION_LABELS = {
+  OUT: "Outgoing",
+  IN: "Incoming",
+  INTERNAL: "Between own accounts",
+  UNKNOWN: "",
+} as const;
+
 function CompactTransactionList({
   transactions,
+  ownAccountIds,
 }: {
   transactions:
     TransactionExplorerItem[];
+  /** Accounts of the entity on screen, to tell incoming from outgoing. */
+  ownAccountIds: ReadonlySet<string>;
 }) {
   return (
     <DetailBlock
       title="Recent transactions"
       count={transactions.length}
+      empty="No transactions yet."
     >
       {transactions.map(
-        (transaction) => (
-          <div
-            className="detail-list-row"
-            key={transaction.id}
-          >
-            <div className="transaction-direction">
-              {transaction.riskScore >=
-              70 ? (
-                <CircleAlert
-                  size={14}
-                  className="risk-icon"
-                />
-              ) : transaction.amount >=
-                10000 ? (
-                <ArrowUpRight
-                  size={14}
-                />
-              ) : (
-                <ArrowDownLeft
-                  size={14}
-                />
-              )}
+        (transaction) => {
+          const direction =
+            transactionDirection(
+              transaction,
+              ownAccountIds
+            );
 
-              <div>
+          return (
+            <div
+              className="detail-list-row"
+              key={transaction.id}
+            >
+              <div className="transaction-direction">
+                {transaction.riskScore >=
+                70 ? (
+                  <CircleAlert
+                    size={14}
+                    className="risk-icon"
+                    aria-hidden="true"
+                  />
+                ) : direction === "OUT" ? (
+                  <ArrowUpRight
+                    size={14}
+                    aria-hidden="true"
+                  />
+                ) : direction === "IN" ? (
+                  <ArrowDownLeft
+                    size={14}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <ArrowRightLeft
+                    size={14}
+                    aria-hidden="true"
+                  />
+                )}
+
+                <div>
+                  <strong>
+                    {
+                      transaction.reference
+                    }
+                  </strong>
+
+                  <span>
+                    {
+                      transaction
+                        .sourceCustomer
+                    }
+                    {" → "}
+                    {
+                      transaction
+                        .destinationCustomer
+                    }
+                    {DIRECTION_LABELS[
+                      direction
+                    ] &&
+                      ` · ${DIRECTION_LABELS[direction]}`}
+                  </span>
+                </div>
+              </div>
+
+              <div className="detail-list-right">
                 <strong>
-                  {
-                    transaction.reference
-                  }
+                  {money(
+                    transaction.amount,
+                    transaction.currency
+                  )}
                 </strong>
 
                 <span>
+                  Risk{" "}
                   {
                     transaction
-                      .sourceCustomer
-                  }
-                  {" → "}
-                  {
-                    transaction
-                      .destinationCustomer
+                      .riskScore
                   }
                 </span>
               </div>
             </div>
-
-            <div className="detail-list-right">
-              <strong>
-                {money(
-                  transaction.amount,
-                  transaction.currency
-                )}
-              </strong>
-
-              <span>
-                Risk{" "}
-                {
-                  transaction
-                    .riskScore
-                }
-              </span>
-            </div>
-          </div>
-        )
+          );
+        }
       )}
     </DetailBlock>
   );
@@ -1244,10 +1797,13 @@ function AlertSnapshotList({
 function DetailBlock({
   title,
   count,
+  empty,
   children,
 }: {
   title: string;
   count: number;
+  /** Shown instead of the rows when there are none. */
+  empty?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -1258,6 +1814,12 @@ function DetailBlock({
       </div>
 
       <div className="detail-block-body">
+        {count === 0 && empty && (
+          <div className="detail-empty">
+            {empty}
+          </div>
+        )}
+
         {children}
       </div>
     </section>
@@ -1300,56 +1862,17 @@ function money(
   amount: number,
   currency: string
 ) {
-  return new Intl.NumberFormat(
-    "en-GB",
-    {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }
-  ).format(amount);
-}
-
-function humanize(
-  value: string
-) {
-  return value
-    .toLowerCase()
-    .replaceAll("_", " ")
-    .replace(
-      /\b\w/g,
-      (character) =>
-        character.toUpperCase()
-    );
-}
-
-function formatDate(
-  value: string
-) {
-  return new Intl.DateTimeFormat(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }
-  ).format(
-    new Date(value)
-  );
-}
-
-function formatDateTime(
-  value: string
-) {
-  return new Intl.DateTimeFormat(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  ).format(
-    new Date(value)
-  );
+  try {
+    return new Intl.NumberFormat(
+      "en-GB",
+      {
+        style: "currency",
+        currency,
+        maximumFractionDigits: 0,
+      }
+    ).format(amount);
+  } catch {
+    // An unknown currency code must not take the whole view down.
+    return `${amount.toLocaleString("en-GB")} ${currency}`.trim();
+  }
 }

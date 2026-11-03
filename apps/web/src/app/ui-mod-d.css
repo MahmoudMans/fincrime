@@ -1,0 +1,684 @@
+/* Module group d styles (prefix in the class names is unique to this file). */
+
+/* ==========================================================================
+   Case workspace
+   ========================================================================== */
+
+/* ---------- shared bits ---------- */
+
+.ui-cw-pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.case-note p.ui-cw-pre,
+.resolved-case p.ui-cw-pre {
+  font-size: 12.5px;
+}
+
+.ui-cw-note {
+  margin: 0;
+  padding: 6px 11px 0;
+
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.ui-cw-banner {
+  align-items: flex-start;
+
+  font-size: 12.5px;
+}
+
+.ui-cw-banner span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ui-cw-banner button,
+.ui-cw-error button {
+  flex: 0 0 auto;
+
+  display: inline-flex;
+  align-items: center;
+
+  padding: 3px;
+
+  border: 0;
+  border-radius: 5px;
+
+  color: inherit;
+  background: transparent;
+
+  cursor: pointer;
+}
+
+.ui-cw-banner button:hover,
+.ui-cw-error button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ui-cw-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+
+  margin: 10px 11px 0;
+  padding: 9px 10px;
+
+  border: 1px solid rgba(240, 92, 105, 0.3);
+  border-radius: 7px;
+
+  color: #ff9aa2;
+  background: var(--red-soft);
+
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.ui-cw-error svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.ui-cw-error span {
+  flex: 1 1 auto;
+  min-width: 0;
+
+  overflow-wrap: anywhere;
+}
+
+.case-side-block .ui-cw-error {
+  margin-bottom: 0;
+}
+
+/* The shared list tools were laid out for full-width panels; inside the
+   workspace blocks they line up with the block padding instead. */
+
+.case-workspace-panel .ui-tools,
+.case-workspace-panel .ui-chips-row,
+.case-workspace-panel .ui-views {
+  padding-left: 11px;
+  padding-right: 11px;
+}
+
+.case-workspace-panel .ui-result-count {
+  padding: 8px 11px 0;
+}
+
+.case-workspace-panel .ui-pager {
+  padding: 10px;
+}
+
+.case-workspace-panel .state-card {
+  min-height: 120px;
+}
+
+/* The evidence list is paged, so it does not need its own scroll area. */
+.case-workspace-panel .evidence-list {
+  max-height: none;
+
+  overflow: visible;
+}
+
+.case-note-head time {
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+/* ---------- note composer ---------- */
+
+.ui-cw-composer .ui-cw-counter {
+  grid-column: 1 / -1;
+}
+
+.ui-cw-counter {
+  margin: 0;
+
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.ui-cw-counter-warn {
+  color: #f2cf8a;
+}
+
+.ui-cw-side-counter {
+  margin: -2px 10px 0;
+}
+
+.ui-cw-side-hint {
+  margin: 6px 10px 0;
+}
+
+.ui-cw-confirm-row {
+  padding: 0 10px;
+}
+
+.ui-cw-confirm-row .case-wide-button {
+  width: 100%;
+  margin: 6px 0 0;
+}
+
+.ui-cw-confirm-row .ui-confirm {
+  flex-wrap: wrap;
+
+  margin-top: 6px;
+}
+
+.ui-cw-closed-at {
+  display: block;
+
+  margin-top: 8px;
+
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+/* ---------- assignee picker ---------- */
+
+.ui-cw-picker {
+  display: grid;
+  gap: 12px;
+
+  padding: 10px 10px 2px;
+}
+
+.ui-cw-owner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  min-width: 0;
+}
+
+.ui-cw-avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid rgba(98, 160, 255, 0.35);
+  border-radius: 50%;
+
+  color: #a9ccff;
+  background: var(--blue-soft);
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ui-cw-avatar-small {
+  width: 24px;
+  height: 24px;
+}
+
+.ui-cw-owner-copy {
+  min-width: 0;
+}
+
+.ui-cw-owner-label {
+  display: block;
+
+  color: var(--text-soft);
+
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ui-cw-owner-copy strong {
+  display: block;
+
+  margin-top: 2px;
+
+  color: #d4e1ef;
+
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.ui-cw-owner-you {
+  flex: 0 0 auto;
+
+  margin-left: auto;
+  padding: 2px 9px;
+
+  border-radius: 999px;
+
+  color: var(--green);
+  background: var(--green-soft);
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ui-cw-picker-form {
+  display: grid;
+  gap: 6px;
+}
+
+.ui-cw-field-label {
+  color: var(--text-soft);
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ui-cw-input {
+  width: 100%;
+  height: 36px;
+
+  padding: 0 10px;
+
+  border: 1px solid var(--border);
+  border-radius: 7px;
+
+  color: #c9d8e8;
+  background: rgba(0, 0, 0, 0.12);
+
+  font: inherit;
+  font-size: 13px;
+}
+
+.ui-cw-input:focus {
+  border-color: rgba(52, 127, 245, 0.6);
+}
+
+.ui-cw-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ui-cw-input[aria-invalid="true"] {
+  border-color: rgba(242, 182, 83, 0.6);
+}
+
+.ui-cw-hint {
+  margin: 0;
+
+  color: var(--text-soft);
+
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ui-cw-hint-problem {
+  color: #f2cf8a;
+}
+
+.ui-cw-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ui-cw-chip {
+  max-width: 100%;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 3px 10px 3px 3px;
+
+  border: 1px solid var(--border);
+  border-radius: 999px;
+
+  color: var(--text-muted);
+  background: transparent;
+
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.ui-cw-chip:hover:not(:disabled) {
+  color: var(--text);
+  border-color: #31506f;
+}
+
+.ui-cw-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ui-cw-chip-text {
+  max-width: 190px;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-cw-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.ui-cw-picker .case-permission-note {
+  max-width: none;
+
+  font-size: 12px;
+}
+
+/* ---------- activity timeline ---------- */
+
+.ui-cw-days,
+.ui-cw-events {
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.ui-cw-days {
+  padding: 8px 11px 12px;
+}
+
+.ui-cw-day + .ui-cw-day {
+  margin-top: 12px;
+}
+
+.ui-cw-day-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  margin: 0;
+  padding: 6px 0;
+
+  border-bottom: 1px solid var(--border-soft);
+
+  color: var(--text);
+
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.ui-cw-day-relative {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.ui-cw-day-count {
+  min-width: 22px;
+
+  margin-left: auto;
+  padding: 0 7px;
+
+  border-radius: 999px;
+
+  color: #82a7d0;
+  background: var(--blue-soft);
+
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.ui-cw-event {
+  position: relative;
+
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 10px;
+
+  padding: 9px 0;
+}
+
+.ui-cw-event:not(:last-child)::before {
+  content: "";
+
+  position: absolute;
+  top: 20px;
+  bottom: -9px;
+  left: 5px;
+
+  width: 1px;
+
+  background: var(--border);
+}
+
+.ui-cw-event-dot {
+  position: relative;
+  z-index: 1;
+
+  width: 11px;
+  height: 11px;
+
+  margin-top: 3px;
+
+  border: 2px solid #6ea9ff;
+  border-radius: 50%;
+
+  background: var(--surface);
+}
+
+.ui-cw-event[data-event="CASE_RESOLVED"] .ui-cw-event-dot {
+  border-color: var(--tone-ok);
+}
+
+.ui-cw-event[data-event="ASSIGNEE_CHANGED"] .ui-cw-event-dot {
+  border-color: var(--violet);
+}
+
+.ui-cw-event[data-event="EVIDENCE_ATTACHED"] .ui-cw-event-dot {
+  border-color: var(--tone-warning);
+}
+
+.ui-cw-event-body {
+  min-width: 0;
+}
+
+.ui-cw-event-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 12px;
+}
+
+.ui-cw-event-head strong {
+  color: #d4e2ef;
+
+  font-size: 12.5px;
+}
+
+.ui-cw-event-head time {
+  color: var(--text-soft);
+
+  cursor: help;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.ui-cw-event p {
+  margin: 3px 0;
+
+  color: var(--text-muted);
+
+  font-size: 12.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.ui-cw-event small {
+  display: block;
+
+  color: var(--text-soft);
+
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .ui-cw-event-head time {
+    white-space: normal;
+  }
+}
+
+/* ==========================================================================
+   Data ingestion
+   ========================================================================== */
+
+.ingestion-dropzone:focus-within {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.ui-cw-error-wide {
+  margin: 12px 16px 0;
+}
+
+.ui-cw-error-retry,
+.ui-cw-inline-retry {
+  flex: 0 0 auto;
+
+  margin-left: auto;
+  padding: 4px 10px;
+
+  border: 1px solid rgba(255, 138, 148, 0.45);
+  border-radius: 6px;
+
+  color: inherit;
+  background: transparent;
+
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.ui-cw-error-retry:hover,
+.ui-cw-inline-retry:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ui-cw-inline-retry:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ingestion-message > span {
+  min-width: 0;
+
+  overflow-wrap: anywhere;
+}
+
+.ui-cw-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  margin-top: 12px;
+  padding: 9px 10px;
+
+  border: 1px solid rgba(98, 160, 255, 0.3);
+  border-radius: 7px;
+
+  color: #a9ccff;
+  background: rgba(52, 127, 245, 0.08);
+
+  font-size: 12.5px;
+}
+
+.ui-cw-progress progress {
+  flex: 0 0 120px;
+
+  height: 6px;
+
+  accent-color: var(--blue);
+}
+
+.ingestion-history-panel .ui-result-count,
+.ingestion-issue-list .ui-result-count {
+  padding: 10px 16px 0;
+}
+
+.ingestion-history-panel .ui-cw-note {
+  padding: 6px 16px 0;
+}
+
+.ingestion-history-panel .ui-views,
+.ingestion-issue-list .ui-views {
+  padding-top: 2px;
+}
+
+.ingestion-issue-list .ui-pager {
+  padding: 10px;
+}
+
+.ui-cw-row-active {
+  background: rgba(52, 127, 245, 0.1);
+}
+
+.ingestion-history-row:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+.ingestion-history-primary .ui-cw-job-failure {
+  color: #ff9aa2;
+
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.ingestion-history-panel .ingestion-status {
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .ui-cw-progress {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .ui-cw-progress progress {
+    width: 100%;
+    flex-basis: auto;
+  }
+}
+
+/* The import buttons used the classes primary-action / secondary-action,
+   which no stylesheet defines; they now use the shared button classes. */
+
+.ingestion-primary-actions .secondary-button,
+.ingestion-preview-actions .secondary-button {
+  min-height: 40px;
+
+  padding: 0 15px;
+
+  border-radius: 9px;
+
+  font-size: 13px;
+}
+
+.ingestion-primary-actions .ui-confirm button,
+.ingestion-preview-actions .ui-confirm button {
+  min-height: 40px;
+
+  font-size: 13px;
+}
+
+.ingestion-primary-actions,
+.ingestion-preview-actions {
+  flex-wrap: wrap;
+}
+
+/* A fixed last column keeps the counts of every row in line. */
+@media (min-width: 1101px) {
+  .ingestion-history-row {
+    grid-template-columns:
+      minmax(220px, 1fr)
+      80px
+      80px
+      minmax(150px, 0.4fr)
+      96px;
+  }
+}

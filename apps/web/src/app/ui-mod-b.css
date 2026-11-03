@@ -1,0 +1,358 @@
+/*
+ * Module group b: compliance operations, rule governance, decision
+ * governance, decision execution and outcome attestations. Every class
+ * starts with ui-gv-; the few rules aimed at older classes only repair
+ * how those classes treat the shared building blocks.
+ */
+
+/* ---------- messages ---------- */
+
+.ui-gv-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+
+  margin: 14px 16px 0;
+  padding: 10px 12px;
+
+  border: 1px solid transparent;
+  border-radius: 9px;
+
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.ui-gv-banner svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.ui-gv-banner > span {
+  min-width: 0;
+  flex: 1 1 auto;
+
+  overflow-wrap: anywhere;
+}
+
+.ui-gv-banner-error {
+  border-color: rgba(240, 92, 105, 0.38);
+
+  color: #ffb3ba;
+  background: var(--red-soft);
+}
+
+.ui-gv-banner-ok {
+  border-color: rgba(40, 200, 183, 0.34);
+
+  color: #9fe8de;
+  background: var(--green-soft);
+}
+
+.ui-gv-banner-close {
+  display: inline-flex;
+  flex: 0 0 auto;
+
+  padding: 3px;
+
+  border: 0;
+  border-radius: 5px;
+
+  color: inherit;
+  background: transparent;
+
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.ui-gv-banner-close:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ---------- small pieces ---------- */
+
+.ui-gv-pill {
+  display: inline-flex;
+  align-items: center;
+
+  padding: 1px 8px;
+
+  border: 1px solid var(--bar, var(--border));
+  border-radius: 999px;
+
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.6;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+/* The older row styles set every nested span to a muted block. */
+
+.compliance-activity-row .ui-gv-pill {
+  display: inline-flex;
+
+  margin: 0 0 0 8px;
+
+  color: var(--text);
+  font-size: 12px;
+}
+
+.decision-case-row .ui-gv-pill {
+  display: inline-flex;
+
+  margin: 5px 0 0;
+
+  color: var(--text);
+  font-size: 12px;
+}
+
+.ui-gv-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.ui-gv-summary {
+  padding: 14px 16px 0;
+}
+
+.ui-gv-summary .ui-bar-button,
+.ui-gv-summary .ui-bar-plain {
+  grid-template-columns: 170px minmax(0, 1fr) 52px;
+}
+
+.ui-gv-subhead {
+  margin: 0 0 6px;
+
+  color: var(--text-muted);
+
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.ui-gv-hint {
+  margin: 8px 0 0;
+
+  color: var(--text-soft);
+
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ui-gv-meta,
+.rule-detail-head .ui-gv-meta,
+.decision-history-row .ui-gv-meta {
+  display: block;
+
+  margin: 5px 0 0;
+
+  color: var(--text-soft);
+
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ui-gv-inline-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.ui-gv-inline-actions .ui-icon-text-button {
+  height: 30px;
+
+  padding: 0 10px;
+
+  font-size: 12px;
+}
+
+.ui-gv-card-chips {
+  padding-top: 10px;
+}
+
+/* ---------- compliance ---------- */
+
+.ui-gv-sla .sla-case-list {
+  max-height: none;
+}
+
+.ui-gv-sla .ui-pager,
+.ui-gv-activity .ui-pager {
+  padding: 10px;
+}
+
+/* ---------- decision governance ---------- */
+
+.decision-case-list .ui-pager {
+  flex-wrap: wrap;
+  gap: 8px;
+
+  padding: 10px 8px;
+}
+
+.decision-case-list .ui-pager .secondary-button {
+  padding: 0 9px;
+}
+
+.decision-review-actions .ui-gv-review {
+  font-size: 12.5px;
+}
+
+.decision-review-actions .ui-confirm-yes {
+  border-color: rgba(240, 92, 105, 0.6);
+
+  color: #ffd4d8;
+  background: rgba(240, 92, 105, 0.22);
+}
+
+.decision-review-actions .ui-confirm-no {
+  color: var(--text-muted);
+}
+
+.decision-review-result.ui-gv-rejected {
+  color: #ffa0a8;
+  background: var(--red-soft);
+}
+
+/* ---------- decision execution and attestations ---------- */
+
+.decision-executable-row .ui-confirm,
+.outcome-attestation-row .ui-confirm {
+  display: inline-flex;
+
+  margin-top: 0;
+
+  color: inherit;
+  font-size: 12px;
+}
+
+.decision-executable-row > .primary-button,
+.decision-executable-row > .ui-confirm {
+  flex: 0 0 auto;
+}
+
+.decision-executable-row > .primary-button {
+  width: 108px;
+
+  justify-content: center;
+}
+
+.decision-execution-card-heading,
+.outcome-attestation-card-heading {
+  flex-wrap: wrap;
+
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.outcome-integrity-state.ui-gv-failed,
+.outcome-verification-detail.ui-gv-failed {
+  color: #ffb3ba;
+  background: var(--red-soft);
+}
+
+.ui-gv-ledger {
+  margin: 0 16px 16px;
+}
+
+.ui-gv-table-wrap {
+  overflow-x: auto;
+}
+
+.ui-gv-table-wrap:focus-visible {
+  outline: 2px solid rgba(75, 143, 255, 0.72);
+  outline-offset: -2px;
+}
+
+.ui-gv-table {
+  width: 100%;
+  min-width: 700px;
+
+  border-collapse: collapse;
+
+  font-size: 12.5px;
+}
+
+.ui-gv-table th,
+.ui-gv-table td {
+  padding: 9px 12px;
+
+  border-bottom: 1px solid var(--border-soft);
+
+  color: var(--text-muted);
+
+  text-align: left;
+  vertical-align: top;
+}
+
+.ui-gv-table thead th {
+  color: var(--text-soft);
+
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ui-gv-table tbody th {
+  color: var(--text);
+
+  font-weight: 650;
+}
+
+.ui-gv-table tbody tr:last-child th,
+.ui-gv-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ui-gv-table td > span,
+.ui-gv-table tbody th > span {
+  display: block;
+
+  margin-top: 3px;
+
+  color: var(--text-soft);
+
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.ui-gv-table td.ui-gv-cell-people > span {
+  margin-top: 0;
+
+  color: var(--text-muted);
+}
+
+.ui-gv-cell-note {
+  max-width: 320px;
+
+  overflow-wrap: anywhere;
+}
+
+/* ---------- small screens ---------- */
+
+@media (max-width: 600px) {
+  .ui-gv-summary .ui-bar-button,
+  .ui-gv-summary .ui-bar-plain {
+    grid-template-columns: 110px minmax(0, 1fr) 44px;
+  }
+}
+
+@media (max-width: 800px) {
+  .ui-gv-head-actions {
+    width: 100%;
+  }
+
+  .ui-gv-ledger {
+    margin: 0 12px 12px;
+  }
+}

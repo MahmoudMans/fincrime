@@ -4,7 +4,6 @@ import {
   Activity,
   CheckCircle2,
   Fingerprint,
-  History,
   Link2,
   LockKeyhole,
   RefreshCw,
@@ -12,22 +11,52 @@ import {
 } from "lucide-react";
 
 import {
-  useEffect,
-  useMemo,
+  useCallback,
   useState,
 } from "react";
 
 import {
+  fetchSecurityAudit,
   fetchSecurityAuditLedgerHistory,
   fetchSecurityAuditLedgerStatus,
   refreshSecurityAuditLedger,
-  type SecurityAuditLedgerStatus,
-  type SecurityAuditLedgerVerification,
+  type SecurityAuditEvent,
 } from "@/lib/api";
+
+import {
+  ledgerState,
+  ledgerStateExplanation,
+  ledgerStateLabel,
+} from "@/lib/ev-audit";
+
+import { useActionRunner } from "@/lib/ev-hooks";
+
+import { formatDateTime } from "@/lib/format";
+
+import { plural } from "@/lib/list-utils";
+
+import { useLoad } from "@/lib/use-load";
 
 import {
   useAuth,
 } from "./auth-context";
+
+import {
+  AuditEventsCard,
+  VerificationHistoryCard,
+} from "./ev-audit-parts";
+
+import {
+  CopyButton,
+  ErrorBanner,
+  SuccessBanner,
+} from "./ev-ui";
+
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "./state-card";
 
 export function SecurityAuditLedger() {
   const {
@@ -39,157 +68,160 @@ export function SecurityAuditLedger() {
       "ADMIN"
     );
 
-  const [status, setStatus] =
-    useState<
-      SecurityAuditLedgerStatus | null
-    >(
-      null
-    );
-
-  const [history, setHistory] =
-    useState<
-      SecurityAuditLedgerVerification[]
-    >(
-      []
-    );
-
-  const [action, setAction] =
-    useState<string | null>(
-      null
-    );
-
-  const [error, setError] =
-    useState<string | null>(
-      null
-    );
-
-  useEffect(() => {
-    if (!isAdmin) {
-      return;
-    }
-
-    const controller =
-      new AbortController();
-
-    void Promise.all([
-      fetchSecurityAuditLedgerStatus(
-        controller.signal
-      ),
-      fetchSecurityAuditLedgerHistory(
-        controller.signal
-      ),
-    ])
-      .then(
-        ([
-          loadedStatus,
-          loadedHistory,
-        ]) => {
-          setStatus(
-            loadedStatus
-          );
-
-          setHistory(
-            loadedHistory
-          );
-
-          setError(
-            null
-          );
-        }
-      )
-      .catch(
-        (loadError: unknown) => {
-          if (
-            loadError instanceof DOMException &&
-            loadError.name ===
-              "AbortError"
-          ) {
-            return;
-          }
-
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load audit ledger."
-          );
-        }
-      );
-
-    return () =>
-      controller.abort();
-  }, [
-    isAdmin,
-  ]);
-
-  const stateLabel =
-    useMemo(
-      () => {
-        if (!status) {
-          return "Unknown";
-        }
-
-        if (
-          status.integrityValid
-        ) {
-          return "Verified";
-        }
-
-        if (
-          status.chainValid &&
-          !status.complete
-        ) {
-          return "Refresh required";
-        }
-
-        return "Integrity failure";
-      },
+  // Only Administrators may call these endpoints; everyone else gets
+  // the access message below instead of a stream of 403 errors.
+  const fetchLedger =
+    useCallback(
+      (signal: AbortSignal) =>
+        isAdmin
+          ? Promise.all([
+              fetchSecurityAuditLedgerStatus(
+                signal
+              ),
+              fetchSecurityAuditLedgerHistory(
+                signal
+              ),
+            ]).then(
+              ([
+                status,
+                history,
+              ]) => ({
+                status,
+                history,
+              })
+            )
+          : Promise.resolve(
+              null
+            ),
       [
-        status,
+        isAdmin,
       ]
     );
 
+  const fetchEvents =
+    useCallback(
+      (signal: AbortSignal) =>
+        isAdmin
+          ? fetchSecurityAudit(
+              signal
+            )
+          : Promise.resolve<
+              SecurityAuditEvent[]
+            >(
+              []
+            ),
+      [
+        isAdmin,
+      ]
+    );
+
+  const ledgerLoad =
+    useLoad(
+      fetchLedger,
+      "Unable to load audit ledger."
+    );
+
+  const eventsLoad =
+    useLoad(
+      fetchEvents,
+      "Unable to load security events."
+    );
+
+  const status =
+    ledgerLoad.data?.status ??
+    null;
+
+  const history =
+    ledgerLoad.data?.history ??
+    [];
+
+  const [notice, setNotice] =
+    useState<string | null>(
+      null
+    );
+
+  const {
+    busy: action,
+    error,
+    clearError,
+    run,
+  } =
+    useActionRunner();
+
+  const state =
+    ledgerState(
+      status
+    );
+
+  const stateLabel =
+    ledgerStateLabel(
+      state
+    );
+
   if (!isAdmin) {
-    return null;
+    return (
+      <section className="panel audit-ledger-panel">
+        <div className="panel-heading audit-ledger-heading">
+          <div>
+            <div className="eyebrow">
+              Security integrity
+            </div>
+
+            <h2>
+              Tamper-evident audit ledger
+            </h2>
+          </div>
+        </div>
+
+        <EmptyState
+          icon={
+            <LockKeyhole
+              size={24}
+              aria-hidden="true"
+            />
+          }
+          title="Administrator access required"
+          message="The audit ledger and the security event trail are only available to Administrators."
+        />
+      </section>
+    );
   }
 
   async function refresh() {
-    try {
-      setAction(
-        "refresh"
-      );
+    setNotice(
+      null
+    );
 
-      setError(
-        null
-      );
+    await run(
+      "refresh",
+      () =>
+        refreshSecurityAuditLedger(),
+      "Unable to refresh audit ledger.",
+      (result) => {
+        setNotice(
+          `Ledger refreshed: ${result.appendedCount} ${plural(
+            result.appendedCount,
+            "entry",
+            "entries"
+          )} appended. Integrity: ${ledgerStateLabel(
+            ledgerState(
+              result.status
+            )
+          )}.`
+        );
 
-      const result =
-        await refreshSecurityAuditLedger();
+        ledgerLoad.reload();
 
-      const updatedHistory =
-        await fetchSecurityAuditLedgerHistory();
-
-      setStatus(
-        result.status
-      );
-
-      setHistory(
-        updatedHistory
-      );
-    } catch (refreshError) {
-      setError(
-        refreshError instanceof Error
-          ? refreshError.message
-          : "Unable to refresh audit ledger."
-      );
-    } finally {
-      setAction(
-        null
-      );
-    }
+        eventsLoad.reload();
+      }
+    );
   }
 
   return (
-    <section className="panel audit-ledger-panel">
+    <section
+      className="panel audit-ledger-panel"
+      aria-busy={ledgerLoad.loading}
+    >
       <div className="panel-heading audit-ledger-heading">
         <div>
           <div className="eyebrow">
@@ -220,6 +252,12 @@ export function SecurityAuditLedger() {
         >
           <RefreshCw
             size={13}
+            className={
+              action === "refresh"
+                ? "ui-spin"
+                : undefined
+            }
+            aria-hidden="true"
           />
 
           {action === "refresh"
@@ -228,22 +266,47 @@ export function SecurityAuditLedger() {
         </button>
       </div>
 
-      {error && (
-        <div className="audit-ledger-error">
-          <ShieldAlert
-            size={14}
-          />
-
-          {error}
-        </div>
+      {notice && (
+        <SuccessBanner
+          message={notice}
+          onDismiss={() =>
+            setNotice(null)
+          }
+        />
       )}
 
+      {error && (
+        <ErrorBanner
+          message={error}
+          onDismiss={clearError}
+        />
+      )}
+
+      {ledgerLoad.error && (
+        <ErrorState
+          compact
+          title="Unable to load the audit ledger"
+          message={ledgerLoad.error}
+          onRetry={ledgerLoad.reload}
+        />
+      )}
+
+      {ledgerLoad.data === null &&
+        ledgerLoad.loading && (
+          <LoadingState
+            compact
+            label="Loading audit ledger"
+          />
+        )}
+
+      {ledgerLoad.data !== null && (
+      <>
       <div className="audit-ledger-metrics">
         <LedgerMetric
           label="Source events"
           value={
             status?.sourceEventCount ??
-            0
+            null
           }
           icon={
             <Activity
@@ -256,7 +319,7 @@ export function SecurityAuditLedger() {
           label="Ledger entries"
           value={
             status?.ledgerEntryCount ??
-            0
+            null
           }
           icon={
             <Link2
@@ -269,7 +332,7 @@ export function SecurityAuditLedger() {
           label="Uncovered"
           value={
             status?.uncoveredEventCount ??
-            0
+            null
           }
           icon={
             <ShieldAlert
@@ -305,6 +368,18 @@ export function SecurityAuditLedger() {
         </div>
       </div>
 
+      <p
+        className={`ui-ev-state-note ui-ev-state-${state.toLowerCase()}`}
+        role="status"
+      >
+        {ledgerStateExplanation(
+          status
+        )}
+
+        {status &&
+          ` Last verified ${formatDateTime(status.verifiedAt)} UTC.`}
+      </p>
+
       <div className="audit-ledger-grid">
         <div className="audit-ledger-card">
           <div className="audit-ledger-card-heading">
@@ -332,11 +407,22 @@ export function SecurityAuditLedger() {
               {status?.rootHash ??
                 "No ledger checkpoint yet"}
             </code>
+
+            {status?.rootHash && (
+              <CopyButton
+                value={
+                  status.rootHash
+                }
+                label="ledger root hash"
+              />
+            )}
           </div>
 
           <div className="audit-ledger-flags">
             <IntegrityFlag
               label="Hash chain"
+              onText="valid"
+              offText="invalid"
               active={
                 status?.chainValid ??
                 false
@@ -345,6 +431,8 @@ export function SecurityAuditLedger() {
 
             <IntegrityFlag
               label="Coverage"
+              onText="complete"
+              offText="incomplete"
               active={
                 status?.complete ??
                 false
@@ -353,6 +441,8 @@ export function SecurityAuditLedger() {
 
             <IntegrityFlag
               label="Overall integrity"
+              onText="verified"
+              offText="not verified"
               active={
                 status?.integrityValid ??
                 false
@@ -377,104 +467,28 @@ export function SecurityAuditLedger() {
           </div>
         </div>
 
-        <div className="audit-ledger-card">
-          <div className="audit-ledger-card-heading">
-            <div>
-              <History
-                size={14}
-              />
+        <VerificationHistoryCard
+          history={history}
+        />
+      </div>
+      </>
+      )}
 
-              <strong>
-                Verification history
-              </strong>
-            </div>
-
-            <span>
-              {
-                history.length
-              }
-              {" checks"}
-            </span>
-          </div>
-
-          <div className="audit-verification-list">
-            {history.length ===
-              0 && (
-              <div className="audit-ledger-empty">
-                <History
-                  size={22}
-                />
-
-                <strong>
-                  No verification run
-                </strong>
-
-                <span>
-                  Refresh the ledger to
-                  create its first
-                  verification record.
-                </span>
-              </div>
-            )}
-
-            {history.map(
-              (verification) => (
-                <article
-                  key={
-                    verification.id
-                  }
-                  className="audit-verification-row"
-                >
-                  <div
-                    className={
-                      verification.integrityValid
-                        ? "audit-verification-icon valid"
-                        : "audit-verification-icon"
-                    }
-                  >
-                    {verification.integrityValid ? (
-                      <CheckCircle2
-                        size={13}
-                      />
-                    ) : (
-                      <ShieldAlert
-                        size={13}
-                      />
-                    )}
-                  </div>
-
-                  <div>
-                    <strong>
-                      {verification.integrityValid
-                        ? "Integrity verified"
-                        : "Verification attention"}
-                    </strong>
-
-                    <span>
-                      {
-                        verification.ledgerEntryCount
-                      }
-                      {" entries · +"}
-                      {
-                        verification.appendedCount
-                      }
-                      {" appended · "}
-                      {formatDateTime(
-                        verification.verifiedAt
-                      )}
-                    </span>
-
-                    <p>
-                      {
-                        verification.detail
-                      }
-                    </p>
-                  </div>
-                </article>
-              )
-            )}
-          </div>
-        </div>
+      <div className="ui-ev-events-wrap">
+        <AuditEventsCard
+          events={
+            eventsLoad.data
+          }
+          loading={
+            eventsLoad.loading
+          }
+          error={
+            eventsLoad.error
+          }
+          onRetry={
+            eventsLoad.reload
+          }
+        />
       </div>
     </section>
   );
@@ -486,7 +500,7 @@ function LedgerMetric({
   icon,
 }: {
   label: string;
-  value: number;
+  value: number | null;
   icon: React.ReactNode;
 }) {
   return (
@@ -500,7 +514,7 @@ function LedgerMetric({
       </span>
 
       <strong>
-        {value}
+        {value ?? "—"}
       </strong>
     </div>
   );
@@ -509,9 +523,13 @@ function LedgerMetric({
 function IntegrityFlag({
   label,
   active,
+  onText,
+  offText,
 }: {
   label: string;
   active: boolean;
+  onText: string;
+  offText: string;
 }) {
   return (
     <div
@@ -533,24 +551,11 @@ function IntegrityFlag({
 
       <span>
         {label}
+        {": "}
+        {active
+          ? onText
+          : offText}
       </span>
     </div>
-  );
-}
-
-function formatDateTime(
-  value: string
-) {
-  return new Intl.DateTimeFormat(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }
-  ).format(
-    new Date(value)
   );
 }

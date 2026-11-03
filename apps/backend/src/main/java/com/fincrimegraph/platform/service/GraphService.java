@@ -6,12 +6,13 @@ import com.fincrimegraph.platform.domain.TransactionEntity;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
-import org.neo4j.driver.Values;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class GraphService {
@@ -22,24 +23,107 @@ public class GraphService {
         this.driver = driver;
     }
 
+    private static final int BATCH_SIZE = 500;
+
+    /**
+     * Rebuilds the investigation graph from the relational data.
+     *
+     * Schema statements run first in their own transaction because
+     * Neo4j does not allow schema changes and data writes in the
+     * same transaction. The wipe and the rebuild then run in ONE
+     * write transaction: readers never see an empty or half-built
+     * graph, and any failure rolls back to the previous graph
+     * instead of leaving it partly deleted. Rows are written with
+     * UNWIND batches instead of one transaction per node or edge.
+     */
     public void synchronize(
             List<CustomerEntity> customers,
             List<AccountEntity> accounts,
             List<TransactionEntity> transactions
     ) {
+        List<Map<String, Object>> customerRows =
+                new ArrayList<>(customers.size());
+
+        for (CustomerEntity customer : customers) {
+            Map<String, Object> row =
+                    new HashMap<>();
+
+            row.put("id", customer.getId().toString());
+            row.put("externalId", customer.getExternalId());
+            row.put("name", customer.getFullName());
+            row.put("countryCode", customer.getCountryCode());
+            row.put("riskTier", customer.getRiskTier().name());
+
+            customerRows.add(row);
+        }
+
+        List<Map<String, Object>> accountRows =
+                new ArrayList<>(accounts.size());
+
+        for (AccountEntity account : accounts) {
+            Map<String, Object> row =
+                    new HashMap<>();
+
+            row.put(
+                    "customerId",
+                    account.getCustomer().getId().toString()
+            );
+            row.put("id", account.getId().toString());
+            row.put("accountNumber", account.getAccountNumber());
+            row.put("type", account.getAccountType().name());
+            row.put("currency", account.getCurrency());
+            row.put("status", account.getStatus().name());
+            row.put("balance", account.getBalance().doubleValue());
+            row.put(
+                    "riskTier",
+                    account.getCustomer().getRiskTier().name()
+            );
+            row.put(
+                    "ownerName",
+                    account.getCustomer().getFullName()
+            );
+            row.put(
+                    "countryCode",
+                    account.getCustomer().getCountryCode()
+            );
+
+            accountRows.add(row);
+        }
+
+        List<Map<String, Object>> transactionRows =
+                new ArrayList<>(transactions.size());
+
+        for (TransactionEntity transaction : transactions) {
+            Map<String, Object> row =
+                    new HashMap<>();
+
+            row.put(
+                    "sourceId",
+                    transaction.getSourceAccount().getId().toString()
+            );
+            row.put(
+                    "destinationId",
+                    transaction.getDestinationAccount().getId().toString()
+            );
+            row.put("id", transaction.getId().toString());
+            row.put("reference", transaction.getReference());
+            row.put("amount", transaction.getAmount().doubleValue());
+            row.put("currency", transaction.getCurrency());
+            row.put(
+                    "occurredAt",
+                    transaction.getOccurredAt().toString()
+            );
+            row.put("channel", transaction.getChannel().name());
+            row.put(
+                    "destinationCountry",
+                    transaction.getDestinationCountry()
+            );
+            row.put("status", transaction.getStatus().name());
+
+            transactionRows.add(row);
+        }
+
         try (Session session = driver.session()) {
-
-            session.executeWrite(tx -> {
-                tx.run(
-                        """
-                        MATCH (n)
-                        WHERE n:Customer OR n:Account
-                        DETACH DELETE n
-                        """
-                ).consume();
-
-                return null;
-            });
 
             session.executeWrite(tx -> {
                 tx.run(
@@ -63,129 +147,107 @@ public class GraphService {
                 return null;
             });
 
-            for (CustomerEntity customer : customers) {
-                session.executeWrite(tx -> {
+            session.executeWrite(tx -> {
+                tx.run(
+                        """
+                        MATCH (n)
+                        WHERE n:Customer OR n:Account
+                        DETACH DELETE n
+                        """
+                ).consume();
+
+                for (
+                        List<Map<String, Object>> batch
+                        : partition(customerRows)
+                ) {
                     tx.run(
                             """
-                            MERGE (c:Customer {id: $id})
-                            SET c.externalId = $externalId,
-                                c.name = $name,
-                                c.countryCode = $countryCode,
-                                c.riskTier = $riskTier
+                            UNWIND $rows AS row
+                            MERGE (c:Customer {id: row.id})
+                            SET c.externalId = row.externalId,
+                                c.name = row.name,
+                                c.countryCode = row.countryCode,
+                                c.riskTier = row.riskTier
                             """,
-                            Values.parameters(
-                                    "id",
-                                    customer.getId().toString(),
-                                    "externalId",
-                                    customer.getExternalId(),
-                                    "name",
-                                    customer.getFullName(),
-                                    "countryCode",
-                                    customer.getCountryCode(),
-                                    "riskTier",
-                                    customer.getRiskTier().name()
-                            )
+                            Map.of("rows", batch)
                     ).consume();
+                }
 
-                    return null;
-                });
-            }
-
-            for (AccountEntity account : accounts) {
-                session.executeWrite(tx -> {
+                for (
+                        List<Map<String, Object>> batch
+                        : partition(accountRows)
+                ) {
                     tx.run(
                             """
-                            MATCH (c:Customer {id: $customerId})
-                            MERGE (a:Account {id: $id})
-                            SET a.accountNumber = $accountNumber,
-                                a.type = $type,
-                                a.currency = $currency,
-                                a.status = $status,
-                                a.balance = $balance,
-                                a.riskTier = $riskTier,
-                                a.ownerName = $ownerName,
-                                a.countryCode = $countryCode
+                            UNWIND $rows AS row
+                            MATCH (c:Customer {id: row.customerId})
+                            MERGE (a:Account {id: row.id})
+                            SET a.accountNumber = row.accountNumber,
+                                a.type = row.type,
+                                a.currency = row.currency,
+                                a.status = row.status,
+                                a.balance = row.balance,
+                                a.riskTier = row.riskTier,
+                                a.ownerName = row.ownerName,
+                                a.countryCode = row.countryCode
                             MERGE (c)-[:OWNS]->(a)
                             """,
-                            Values.parameters(
-                                    "customerId",
-                                    account.getCustomer().getId().toString(),
-                                    "id",
-                                    account.getId().toString(),
-                                    "accountNumber",
-                                    account.getAccountNumber(),
-                                    "type",
-                                    account.getAccountType().name(),
-                                    "currency",
-                                    account.getCurrency(),
-                                    "status",
-                                    account.getStatus().name(),
-                                    "balance",
-                                    account.getBalance().doubleValue(),
-                                    "riskTier",
-                                    account.getCustomer().getRiskTier().name(),
-                                    "ownerName",
-                                    account.getCustomer().getFullName(),
-                                    "countryCode",
-                                    account.getCustomer().getCountryCode()
-                            )
+                            Map.of("rows", batch)
                     ).consume();
+                }
 
-                    return null;
-                });
-            }
-
-            for (TransactionEntity transaction : transactions) {
-                session.executeWrite(tx -> {
+                for (
+                        List<Map<String, Object>> batch
+                        : partition(transactionRows)
+                ) {
                     tx.run(
                             """
-                            MATCH (source:Account {id: $sourceId})
-                            MATCH (destination:Account {id: $destinationId})
+                            UNWIND $rows AS row
+                            MATCH (source:Account {id: row.sourceId})
+                            MATCH (destination:Account {id: row.destinationId})
                             CREATE (source)-[:TRANSFERRED_TO {
-                                id: $id,
-                                reference: $reference,
-                                amount: $amount,
-                                currency: $currency,
-                                occurredAt: $occurredAt,
-                                channel: $channel,
-                                destinationCountry: $destinationCountry,
-                                status: $status
+                                id: row.id,
+                                reference: row.reference,
+                                amount: row.amount,
+                                currency: row.currency,
+                                occurredAt: row.occurredAt,
+                                channel: row.channel,
+                                destinationCountry: row.destinationCountry,
+                                status: row.status
                             }]->(destination)
                             """,
-                            Values.parameters(
-                                    "sourceId",
-                                    transaction
-                                            .getSourceAccount()
-                                            .getId()
-                                            .toString(),
-                                    "destinationId",
-                                    transaction
-                                            .getDestinationAccount()
-                                            .getId()
-                                            .toString(),
-                                    "id",
-                                    transaction.getId().toString(),
-                                    "reference",
-                                    transaction.getReference(),
-                                    "amount",
-                                    transaction.getAmount().doubleValue(),
-                                    "currency",
-                                    transaction.getCurrency(),
-                                    "occurredAt",
-                                    transaction.getOccurredAt().toString(),
-                                    "channel",
-                                    transaction.getChannel().name(),
-                                    "destinationCountry",
-                                    transaction.getDestinationCountry(),
-                                    "status",
-                                    transaction.getStatus().name()
-                            )
+                            Map.of("rows", batch)
                     ).consume();
+                }
 
-                    return null;
-                });
-            }
+                return null;
+            });
         }
+    }
+
+    private static List<List<Map<String, Object>>> partition(
+            List<Map<String, Object>> rows
+    ) {
+        List<List<Map<String, Object>>> batches =
+                new ArrayList<>();
+
+        for (
+                int start = 0;
+                start < rows.size();
+                start += BATCH_SIZE
+        ) {
+            batches.add(
+                    rows.subList(
+                            start,
+                            Math.min(
+                                    start + BATCH_SIZE,
+                                    rows.size()
+                            )
+                    )
+            );
+        }
+
+        return batches;
     }
 
     public GraphNetwork getNetwork() {

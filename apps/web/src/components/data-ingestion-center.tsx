@@ -10,23 +10,47 @@ import {
 
 import {
   type DragEvent,
+  useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
 import {
   commitDataImport,
+  fetchDataImportJob,
   fetchDataImportJobs,
   fetchDataImportSchemas,
   previewDataImport,
   resynchronizeImportGraph,
   runAmlDetection,
   type DataImportJob,
-  type DataImportSchema,
 } from "@/lib/api";
+import {
+  formatFileSize,
+  validateImportFile,
+} from "@/lib/cw-ingestion";
+import {
+  humanize,
+  shortHash,
+} from "@/lib/format";
+import { useLoad } from "@/lib/use-load";
 
 import { useAuth } from "./auth-context";
+import { ConfirmButton } from "./confirm-button";
+import {
+  IngestionIssues,
+  IngestionJobLog,
+  StatusBadge,
+} from "./ingestion-job-log";
+
+/** The operations that can fail and be tried again. */
+type IngestionAction =
+  | "validate"
+  | "commit"
+  | "graph"
+  | "detect";
 
 export function DataIngestionCenter() {
   const {
@@ -37,18 +61,6 @@ export function DataIngestionCenter() {
     hasAnyRole(
       "ADMIN"
     );
-
-  const [
-    schemas,
-    setSchemas,
-  ] =
-    useState<DataImportSchema[]>([]);
-
-  const [
-    history,
-    setHistory,
-  ] =
-    useState<DataImportJob[]>([]);
 
   const [
     selectedType,
@@ -81,10 +93,12 @@ export function DataIngestionCenter() {
     useState(false);
 
   const [
-    historyLoading,
-    setHistoryLoading,
+    activity,
+    setActivity,
   ] =
-    useState(false);
+    useState<string | null>(
+      null
+    );
 
   const [
     actionMessage,
@@ -102,76 +116,89 @@ export function DataIngestionCenter() {
       null
     );
 
-  useEffect(() => {
-    if (!canManage) {
-      return;
-    }
+  const [
+    failedAction,
+    setFailedAction,
+  ] =
+    useState<IngestionAction | null>(
+      null
+    );
 
-    const controller =
-      new AbortController();
+  const [
+    openingJobId,
+    setOpeningJobId,
+  ] =
+    useState<string | null>(
+      null
+    );
 
-    async function load() {
-      try {
-        setHistoryLoading(
-          true
-        );
+  const [
+    openError,
+    setOpenError,
+  ] =
+    useState<string | null>(
+      null
+    );
 
-        const [
-          schemaData,
-          historyData,
-        ] =
-          await Promise.all([
-            fetchDataImportSchemas(
-              controller.signal
-            ),
+  const busyRef =
+    useRef(false);
 
-            fetchDataImportJobs(
-              controller.signal
-            ),
-          ]);
+  const openSequence =
+    useRef(0);
 
-        setSchemas(
-          schemaData
-        );
+  const previewRef =
+    useRef<HTMLElement | null>(
+      null
+    );
 
-        setHistory(
-          historyData
-        );
-
-      } catch (cause) {
-        if (
-          !controller
-            .signal
-            .aborted
-        ) {
-          setError(
-            errorMessage(
-              cause
+  // The schema list and the job log load on their own, so one failing
+  // does not hide the other, and each can be retried.
+  const loadSchemas =
+    useCallback(
+      (signal: AbortSignal) =>
+        canManage
+          ? fetchDataImportSchemas(
+              signal
             )
-          );
-        }
+          : Promise.resolve([]),
+      [
+        canManage,
+      ]
+    );
 
-      } finally {
-        if (
-          !controller
-            .signal
-            .aborted
-        ) {
-          setHistoryLoading(
-            false
-          );
-        }
-      }
-    }
+  const loadJobs =
+    useCallback(
+      (signal: AbortSignal) =>
+        canManage
+          ? fetchDataImportJobs(
+              signal
+            )
+          : Promise.resolve([]),
+      [
+        canManage,
+      ]
+    );
 
-    void load();
+  const schemaLoad =
+    useLoad(
+      loadSchemas,
+      "Unable to load the dataset list."
+    );
 
-    return () => {
-      controller.abort();
-    };
-  }, [
-    canManage,
-  ]);
+  const jobsLoad =
+    useLoad(
+      loadJobs,
+      "Unable to load import history."
+    );
+
+  const schemas =
+    schemaLoad.data ?? [];
+
+  const history =
+    jobsLoad.data ?? [];
+
+  const reloadJobs =
+    jobsLoad.reload;
 
   const selectedSchema =
     useMemo(
@@ -187,13 +214,177 @@ export function DataIngestionCenter() {
       ]
     );
 
-  async function refreshHistory() {
-    const jobs =
-      await fetchDataImportJobs();
+  const activeJobId =
+    activeJob?.id ?? null;
 
-    setHistory(
-      jobs
+  // A job that was just validated or opened appears below the upload
+  // card; bring it into view.
+  useEffect(() => {
+    if (activeJobId) {
+      previewRef.current
+        ?.scrollIntoView({
+          block: "nearest",
+        });
+    }
+  }, [
+    activeJobId,
+  ]);
+
+  /**
+   * Runs one import operation at a time (also when a second one is
+   * triggered before the buttons have re-rendered as disabled) and
+   * records what failed so it can be tried again.
+   */
+  async function runAction(
+    kind: IngestionAction,
+    progress: string,
+    task: () => Promise<void>
+  ) {
+    if (busyRef.current) {
+      return;
+    }
+
+    busyRef.current = true;
+
+    try {
+      setLoading(true);
+      setActivity(progress);
+      setError(null);
+      setFailedAction(null);
+      setActionMessage(null);
+
+      await task();
+
+    } catch (cause) {
+      setError(
+        errorMessage(
+          cause
+        )
+      );
+
+      setFailedAction(
+        kind
+      );
+
+    } finally {
+      busyRef.current = false;
+
+      setLoading(false);
+      setActivity(null);
+    }
+  }
+
+  function selectFile(
+    file: File | null
+  ) {
+    if (
+      busyRef.current
+    ) {
+      return false;
+    }
+
+    setError(
+      null
     );
+
+    setFailedAction(
+      null
+    );
+
+    setActionMessage(
+      null
+    );
+
+    if (file) {
+      const problem =
+        validateImportFile(
+          file
+        );
+
+      if (problem) {
+        setSelectedFile(
+          null
+        );
+
+        setError(
+          problem
+        );
+
+        return false;
+      }
+    }
+
+    setSelectedFile(
+      file
+    );
+
+    setActiveJob(
+      null
+    );
+
+    return true;
+  }
+
+  async function openJob(
+    job: DataImportJob
+  ) {
+    if (
+      busyRef.current
+    ) {
+      return;
+    }
+
+    // Only the latest click wins if responses arrive out of order.
+    openSequence.current += 1;
+
+    const sequence =
+      openSequence.current;
+
+    setOpenError(
+      null
+    );
+
+    setOpeningJobId(
+      job.id
+    );
+
+    try {
+      const detailed =
+        await fetchDataImportJob(
+          job.id
+        );
+
+      if (
+        sequence ===
+        openSequence.current
+      ) {
+        setActiveJob(
+          detailed
+        );
+      }
+
+    } catch (cause) {
+      if (
+        sequence ===
+        openSequence.current
+      ) {
+        setOpenError(
+          errorMessage(
+            cause
+          )
+        );
+      }
+
+    } finally {
+      if (
+        sequence ===
+        openSequence.current
+      ) {
+        setOpeningJobId(
+          null
+        );
+      }
+    }
   }
 
   async function handlePreview() {
@@ -205,40 +396,44 @@ export function DataIngestionCenter() {
       return;
     }
 
-    try {
-      setLoading(true);
-      setError(null);
-      setActionMessage(null);
+    const file =
+      selectedFile;
 
-      const result =
-        await previewDataImport(
-          selectedFile,
-          selectedType
+    await runAction(
+      "validate",
+      `Validating ${file.name}…`,
+      async () => {
+        const result =
+          await previewDataImport(
+            file,
+            selectedType
+          );
+
+        setActiveJob(
+          result
         );
 
-      setActiveJob(
-        result
-      );
+        reloadJobs();
 
-      setActionMessage(
-        result.status ===
-          "READY"
-          ? "Validation complete. This dataset is ready to import."
-          : "Validation complete. Resolve invalid rows or provide new data before committing."
-      );
+        if (
+          result.status ===
+          "FAILED"
+        ) {
+          throw new Error(
+            result.failureMessage
+              ? `Validation failed: ${result.failureMessage}`
+              : "Validation failed. See the job details below."
+          );
+        }
 
-      await refreshHistory();
-
-    } catch (cause) {
-      setError(
-        errorMessage(
-          cause
-        )
-      );
-
-    } finally {
-      setLoading(false);
-    }
+        setActionMessage(
+          result.status ===
+            "READY"
+            ? "Validation complete. This dataset is ready to import."
+            : "Validation complete. Resolve invalid rows or provide new data before committing."
+        );
+      }
+    );
   }
 
   async function handleCommit() {
@@ -246,103 +441,88 @@ export function DataIngestionCenter() {
       return;
     }
 
-    try {
-      setLoading(true);
-      setError(null);
-      setActionMessage(null);
+    const job =
+      activeJob;
 
-      const result =
-        await commitDataImport(
-          activeJob.id
+    await runAction(
+      "commit",
+      `Importing ${job.fileName}…`,
+      async () => {
+        const result =
+          await commitDataImport(
+            job.id
+          );
+
+        setActiveJob(
+          result
         );
 
-      setActiveJob(
-        result
-      );
+        if (
+          result.status ===
+          "IMPORTED"
+        ) {
+          setActionMessage(
+            `Imported ${result.importedRows} ${result.datasetType.toLowerCase()} row${
+              result.importedRows === 1
+                ? ""
+                : "s"
+            }. Neo4j synchronization: ${humanize(
+              result.graphSyncStatus
+            )}.`
+          );
 
-      if (
-        result.status ===
-        "IMPORTED"
-      ) {
-        setActionMessage(
-          `Imported ${result.importedRows} ${result.datasetType.toLowerCase()} row${
-            result.importedRows === 1
-              ? ""
-              : "s"
-          }. Neo4j synchronization: ${humanize(
-            result.graphSyncStatus
-          )}.`
-        );
+        } else {
+          setActionMessage(
+            "The dataset was revalidated and is no longer commit-ready."
+          );
+        }
 
-      } else {
-        setActionMessage(
-          "The dataset was revalidated and is no longer commit-ready."
-        );
+        reloadJobs();
       }
-
-      await refreshHistory();
-
-    } catch (cause) {
-      setError(
-        errorMessage(
-          cause
-        )
-      );
-
-    } finally {
-      setLoading(false);
-    }
+    );
   }
 
   async function handleGraphSync() {
-    try {
-      setLoading(true);
-      setError(null);
-      setActionMessage(null);
+    await runAction(
+      "graph",
+      "Synchronizing the graph from PostgreSQL…",
+      async () => {
+        const result =
+          await resynchronizeImportGraph();
 
-      const result =
-        await resynchronizeImportGraph();
+        setActionMessage(
+          `Neo4j synchronized from PostgreSQL: ${result.customers} customers, ${result.accounts} accounts and ${result.transactions} transactions.`
+        );
 
-      setActionMessage(
-        `Neo4j synchronized from PostgreSQL: ${result.customers} customers, ${result.accounts} accounts and ${result.transactions} transactions.`
-      );
-
-      await refreshHistory();
-
-    } catch (cause) {
-      setError(
-        errorMessage(
-          cause
-        )
-      );
-
-    } finally {
-      setLoading(false);
-    }
+        reloadJobs();
+      }
+    );
   }
 
   async function handleDetection() {
-    try {
-      setLoading(true);
-      setError(null);
-      setActionMessage(null);
+    await runAction(
+      "detect",
+      "Running AML detection…",
+      async () => {
+        const run =
+          await runAmlDetection();
 
-      const run =
-        await runAmlDetection();
+        setActionMessage(
+          `AML detection completed: ${run.rulesExecuted} rules, ${run.candidatesFound} candidates and ${run.alertsCreated} new alerts.`
+        );
+      }
+    );
+  }
 
-      setActionMessage(
-        `AML detection completed: ${run.rulesExecuted} rules, ${run.candidatesFound} candidates and ${run.alertsCreated} new alerts.`
-      );
-
-    } catch (cause) {
-      setError(
-        errorMessage(
-          cause
-        )
-      );
-
-    } finally {
-      setLoading(false);
+  function retryFailedAction() {
+    if (failedAction === "validate") {
+      void handlePreview();
+    } else if (failedAction === "commit") {
+      void handleCommit();
+    } else if (failedAction === "graph") {
+      void handleGraphSync();
+    } else if (failedAction === "detect") {
+      void handleDetection();
     }
   }
 
@@ -352,26 +532,27 @@ export function DataIngestionCenter() {
   ) {
     event.preventDefault();
 
-    const file =
+    const files =
       event.dataTransfer
-        .files?.[0];
+        .files;
+
+    const file =
+      files?.[0];
 
     if (file) {
-      setSelectedFile(
-        file
-      );
+      const accepted =
+        selectFile(
+          file
+        );
 
-      setActiveJob(
-        null
-      );
-
-      setError(
-        null
-      );
-
-      setActionMessage(
-        null
-      );
+      if (
+        accepted &&
+        files.length > 1
+      ) {
+        setActionMessage(
+          `Only one file can be validated at a time, so only ${file.name} was used.`
+        );
+      }
     }
   }
 
@@ -412,7 +593,12 @@ export function DataIngestionCenter() {
     <section className="data-ingestion-center">
       <div className="ingestion-command-grid">
 
-        <section className="ingestion-upload-card">
+        <section
+          className="ingestion-upload-card"
+          aria-busy={
+            loading
+          }
+        >
           <div className="ingestion-card-heading">
             <div>
               <span className="eyebrow">
@@ -491,6 +677,32 @@ export function DataIngestionCenter() {
             </div>
           </div>
 
+          {schemaLoad.error && (
+            <div
+              className="ingestion-message ingestion-message-error"
+              role="alert"
+            >
+              <AlertTriangle
+                size={14}
+                aria-hidden="true"
+              />
+
+              <span>
+                The dataset list could not be loaded ({schemaLoad.error}). Auto detect still works.
+              </span>
+
+              <button
+                className="ui-cw-inline-retry"
+                type="button"
+                onClick={
+                  schemaLoad.reload
+                }
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
           <label
             className="ingestion-dropzone"
             htmlFor="fincrime-import-file"
@@ -528,6 +740,9 @@ export function DataIngestionCenter() {
             className="ingestion-file-input"
             type="file"
             accept=".csv,.json,text/csv,application/json"
+            disabled={
+              loading
+            }
             onChange={(
               event
             ) => {
@@ -536,27 +751,19 @@ export function DataIngestionCenter() {
                   .files?.[0] ??
                 null;
 
-              setSelectedFile(
+              selectFile(
                 file
               );
 
-              setActiveJob(
-                null
-              );
-
-              setError(
-                null
-              );
-
-              setActionMessage(
-                null
-              );
+              // Lets the same file be chosen again after an error.
+              event.target.value =
+                "";
             }}
           />
 
           <div className="ingestion-primary-actions">
             <button
-              className="primary-action"
+              className="primary-button"
               type="button"
               disabled={
                 loading ||
@@ -576,14 +783,14 @@ export function DataIngestionCenter() {
                 : "Validate dataset"}
             </button>
 
-            <button
-              className="secondary-action"
-              type="button"
+            <ConfirmButton
+              className="secondary-button"
+              confirmLabel="Yes, resync the graph"
               disabled={
                 loading
               }
-              onClick={
-                handleGraphSync
+              onConfirm={() =>
+                void handleGraphSync()
               }
             >
               <RefreshCw
@@ -592,8 +799,25 @@ export function DataIngestionCenter() {
               />
 
               Resync graph
-            </button>
+            </ConfirmButton>
           </div>
+
+          {activity && (
+            <div
+              className="ui-cw-progress"
+              role="status"
+            >
+              <progress
+                aria-label={
+                  activity
+                }
+              />
+
+              <span>
+                {activity}
+              </span>
+            </div>
+          )}
 
           {selectedSchema && (
             <div className="ingestion-schema-guide">
@@ -647,7 +871,24 @@ export function DataIngestionCenter() {
                 aria-hidden="true"
               />
 
-              {error}
+              <span>
+                {error}
+              </span>
+
+              {failedAction && (
+                <button
+                  className="ui-cw-inline-retry"
+                  type="button"
+                  disabled={
+                    loading
+                  }
+                  onClick={
+                    retryFailedAction
+                  }
+                >
+                  Try again
+                </button>
+              )}
             </div>
           )}
 
@@ -730,7 +971,10 @@ export function DataIngestionCenter() {
       </div>
 
       {activeJob && (
-        <section className="ingestion-preview-panel">
+        <section
+          className="ingestion-preview-panel"
+          ref={previewRef}
+        >
           <div className="ingestion-preview-heading">
             <div>
               <span className="eyebrow">
@@ -747,14 +991,17 @@ export function DataIngestionCenter() {
                 )}
                 {" · "}
                 SHA-256{" "}
-                <code>
-                  {activeJob
-                    .sha256
-                    .slice(
-                      0,
-                      16
-                    )}
-                  …
+                <code
+                  title={
+                    activeJob
+                      .sha256
+                  }
+                >
+                  {shortHash(
+                    activeJob
+                      .sha256,
+                    16
+                  )}
                 </code>
               </p>
             </div>
@@ -807,16 +1054,20 @@ export function DataIngestionCenter() {
           </div>
 
           <div className="ingestion-preview-actions">
-            <button
-              className="primary-action"
-              type="button"
+            <ConfirmButton
+              className="primary-button"
+              confirmLabel={`Yes, import ${activeJob.validRows.toLocaleString()} valid row${
+                activeJob.validRows === 1
+                  ? ""
+                  : "s"
+              }`}
               disabled={
                 loading ||
                 activeJob.status !==
                   "READY"
               }
-              onClick={
-                handleCommit
+              onConfirm={() =>
+                void handleCommit()
               }
             >
               <Database
@@ -825,18 +1076,18 @@ export function DataIngestionCenter() {
               />
 
               Commit import
-            </button>
+            </ConfirmButton>
 
             <button
-              className="secondary-action"
+              className="secondary-button"
               type="button"
               disabled={
                 loading ||
                 activeJob.status !==
                   "IMPORTED"
               }
-              onClick={
-                handleDetection
+              onClick={() =>
+                void handleDetection()
               }
             >
               <Play
@@ -858,22 +1109,64 @@ export function DataIngestionCenter() {
             </span>
           </div>
 
+          {activeJob.failureMessage && (
+            <div
+              className="ingestion-message ingestion-message-error"
+              role="alert"
+            >
+              <AlertTriangle
+                size={14}
+                aria-hidden="true"
+              />
+
+              <span>
+                <strong>
+                  This job failed.
+                </strong>{" "}
+                {activeJob.failureMessage}
+              </span>
+            </div>
+          )}
+
+          {activeJob.graphSyncError && (
+            <div
+              className="ingestion-message ingestion-message-error"
+              role="alert"
+            >
+              <AlertTriangle
+                size={14}
+                aria-hidden="true"
+              />
+
+              <span>
+                <strong>
+                  Graph synchronization failed.
+                </strong>{" "}
+                {activeJob.graphSyncError}{" "}
+                Use Resync graph to try again.
+              </span>
+            </div>
+          )}
+
           {activeJob.previewRows.length >
             0 && (
             <div className="ingestion-preview-table-wrap">
               <table className="ingestion-preview-table">
+                <caption className="ui-visually-hidden">
+                  First rows of the dataset
+                </caption>
+
                 <thead>
                   <tr>
                     {previewColumns.map(
                       (column) => (
                         <th
+                          scope="col"
                           key={
                             column
                           }
                         >
-                          {humanize(
-                            column
-                          )}
+                          {column}
                         </th>
                       )
                     )}
@@ -920,200 +1213,50 @@ export function DataIngestionCenter() {
 
           {activeJob.issues.length >
             0 && (
-            <div className="ingestion-issue-list">
-              <div className="ingestion-subheading">
-                <strong>
-                  Validation issues
-                </strong>
-
-                <span>
-                  Showing up to 100
-                </span>
-              </div>
-
-              {activeJob.issues.map(
-                (
-                  issue,
-                  index
-                ) => (
-                  <div
-                    className="ingestion-issue-row"
-                    key={
-                      `${issue.rowNumber}-${issue.code}-${index}`
-                    }
-                  >
-                    <span className={`ingestion-issue-kind ${issue.classification.toLowerCase()}`}>
-                      {
-                        issue.classification
-                      }
-                    </span>
-
-                    <strong>
-                      Row{" "}
-                      {
-                        issue.rowNumber
-                      }
-                    </strong>
-
-                    <code>
-                      {issue.field ??
-                        "row"}
-                    </code>
-
-                    <span>
-                      {
-                        issue.message
-                      }
-                    </span>
-                  </div>
-                )
-              )}
-            </div>
+            <IngestionIssues
+              key={
+                activeJob.id
+              }
+              job={activeJob}
+            />
           )}
         </section>
       )}
 
-      <section className="ingestion-history-panel">
-        <div className="ingestion-history-heading">
-          <div>
-            <span className="eyebrow">
-              Operational history
-            </span>
-
-            <h2>
-              Import history
-            </h2>
-
-            <p>
-              Recent validation and import jobs created by administrators.
-            </p>
-          </div>
-
-          <button
-            className="text-button"
-            type="button"
-            disabled={
-              historyLoading ||
-              loading
-            }
-            onClick={() =>
-              void refreshHistory()
-            }
-          >
-            <RefreshCw
-              size={12}
-              aria-hidden="true"
-            />
-            Refresh
-          </button>
-        </div>
-
-        {historyLoading &&
-        history.length === 0 ? (
-          <div className="ingestion-history-empty">
-            Loading import history…
-          </div>
-        ) : history.length ===
-          0 ? (
-          <div className="ingestion-history-empty">
-            No import jobs have been created yet.
-          </div>
-        ) : (
-          <div className="ingestion-history-list">
-            {history.map(
-              (job) => (
-                <button
-                  className="ingestion-history-row"
-                  type="button"
-                  key={job.id}
-                  onClick={async () => {
-                    try {
-                      const detailed =
-                        await import(
-                          "@/lib/api"
-                        ).then(
-                          ({
-                            fetchDataImportJob,
-                          }) =>
-                            fetchDataImportJob(
-                              job.id
-                            )
-                        );
-
-                      setActiveJob(
-                        detailed
-                      );
-
-                    } catch (cause) {
-                      setError(
-                        errorMessage(
-                          cause
-                        )
-                      );
-                    }
-                  }}
-                >
-                  <div className="ingestion-history-primary">
-                    <strong>
-                      {job.fileName}
-                    </strong>
-
-                    <span>
-                      {humanize(
-                        job.datasetType
-                      )}
-                      {" · "}
-                      {formatFileSize(
-                        job.fileSize
-                      )}
-                    </span>
-                  </div>
-
-                  <div className="ingestion-history-count">
-                    <span>
-                      Valid
-                    </span>
-
-                    <strong>
-                      {job.validRows}
-                    </strong>
-                  </div>
-
-                  <div className="ingestion-history-count">
-                    <span>
-                      Imported
-                    </span>
-
-                    <strong>
-                      {
-                        job.importedRows
-                      }
-                    </strong>
-                  </div>
-
-                  <div className="ingestion-history-time">
-                    <span>
-                      {formatDate(
-                        job.createdAt
-                      )}
-                    </span>
-
-                    <small>
-                      {job.createdBy}
-                    </small>
-                  </div>
-
-                  <StatusBadge
-                    status={
-                      job.status
-                    }
-                  />
-                </button>
-              )
-            )}
-          </div>
-        )}
-      </section>
+      <IngestionJobLog
+        jobs={history}
+        loading={
+          jobsLoad.loading
+        }
+        error={
+          jobsLoad.error
+        }
+        actionError={
+          openError
+        }
+        disabled={
+          loading
+        }
+        activeJobId={
+          activeJobId
+        }
+        openingJobId={
+          openingJobId
+        }
+        onRefresh={
+          reloadJobs
+        }
+        onDismissActionError={() =>
+          setOpenError(
+            null
+          )
+        }
+        onOpen={(job) =>
+          void openJob(
+            job
+          )
+        }
+      />
     </section>
   );
 }
@@ -1141,75 +1284,6 @@ function Metric({
         {value.toLocaleString()}
       </strong>
     </div>
-  );
-}
-
-function StatusBadge({
-  status,
-}: {
-  status: string;
-}) {
-  return (
-    <span className={`ingestion-status ingestion-status-${status.toLowerCase()}`}>
-      {humanize(
-        status
-      )}
-    </span>
-  );
-}
-
-function humanize(
-  value: string
-) {
-  return value
-    .toLowerCase()
-    .replaceAll(
-      "_",
-      " "
-    )
-    .replace(
-      /\b\w/g,
-      (letter) =>
-        letter.toUpperCase()
-    );
-}
-
-function formatFileSize(
-  bytes: number
-) {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-
-  if (
-    bytes <
-    1024 * 1024
-  ) {
-    return `${(
-      bytes / 1024
-    ).toFixed(1)} KB`;
-  }
-
-  return `${(
-    bytes /
-    (1024 * 1024)
-  ).toFixed(1)} MB`;
-}
-
-function formatDate(
-  value: string
-) {
-  return new Intl.DateTimeFormat(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  ).format(
-    new Date(value)
   );
 }
 

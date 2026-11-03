@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 
 import {
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -16,22 +15,86 @@ import {
   fetchEvidenceCustodyRegistry,
   fetchEvidenceReviews,
   reviewEvidence,
-  type EvidenceCustodyRecord,
-  type EvidenceReviewRecord,
 } from "@/lib/api";
+
+import { exportRowsAsCsv } from "@/lib/csv";
+
+import {
+  buildReviewRows,
+  DEFAULT_REVIEW_FILTERS,
+  filterReviewRows,
+  REVIEW_DECISIONS,
+  REVIEW_HISTORY_COLUMNS,
+  reasonForDecision,
+  reviewBlockers,
+  reviewStateLabel,
+  type ReviewFilters,
+} from "@/lib/ev-review";
+
+import { useActionRunner } from "@/lib/ev-hooks";
+
+import { formatDateTime, humanize } from "@/lib/format";
+
+import { clampPage, paginate } from "@/lib/list-utils";
+
+import { useLoad } from "@/lib/use-load";
 
 import {
   useAuth,
 } from "./auth-context";
 
-const DECISIONS = [
-  "ACCEPTED_FOR_ANALYSIS",
-  "QUESTIONED",
-  "EXCLUDED",
-];
+import { ConfirmButton } from "./confirm-button";
+
+import {
+  ReviewCoverage,
+  ReviewFilterBar,
+} from "./ev-review-parts";
+
+import {
+  ErrorBanner,
+  SuccessBanner,
+} from "./ev-ui";
+
+import {
+  ExportButton,
+  Pager,
+} from "./list-tools";
+
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "./state-card";
+
+const DECISIONS = REVIEW_DECISIONS;
+
+const LIST_PAGE_SIZE = 20;
+
+/** Both lists the screen needs, loaded together. */
+function fetchGovernance(
+  signal: AbortSignal
+) {
+  return Promise.all([
+    fetchEvidenceCustodyRegistry(
+      signal
+    ),
+    fetchEvidenceReviews(
+      signal
+    ),
+  ]).then(
+    ([
+      evidence,
+      reviews,
+    ]) => ({
+      evidence,
+      reviews,
+    })
+  );
+}
 
 export function EvidenceReviewGovernance() {
   const {
+    session,
     hasAnyRole,
   } = useAuth();
 
@@ -41,15 +104,31 @@ export function EvidenceReviewGovernance() {
       "ADMIN"
     );
 
-  const [evidence, setEvidence] =
-    useState<
-      EvidenceCustodyRecord[]
-    >([]);
+  const load =
+    useLoad(
+      fetchGovernance,
+      "Unable to load evidence review governance."
+    );
 
-  const [reviews, setReviews] =
-    useState<
-      EvidenceReviewRecord[]
-    >([]);
+  const evidence =
+    useMemo(
+      () =>
+        load.data?.evidence ??
+        [],
+      [
+        load.data,
+      ]
+    );
+
+  const reviews =
+    useMemo(
+      () =>
+        load.data?.reviews ??
+        [],
+      [
+        load.data,
+      ]
+    );
 
   const [
     selectedEvidenceId,
@@ -73,70 +152,71 @@ export function EvidenceReviewGovernance() {
       "Evidence integrity and custody lineage are suitable for analytical use in the investigation."
     );
 
-  const [action, setAction] =
+  const [filters, setFilters] =
+    useState<ReviewFilters>(
+      DEFAULT_REVIEW_FILTERS
+    );
+
+  const [page, setPage] =
+    useState(
+      0
+    );
+
+  const [notice, setNotice] =
     useState<string | null>(
       null
     );
 
-  const [error, setError] =
-    useState<string | null>(
-      null
+  const {
+    busy: action,
+    error,
+    clearError,
+    run,
+  } =
+    useActionRunner();
+
+  const rows =
+    useMemo(
+      () =>
+        buildReviewRows(
+          evidence,
+          reviews
+        ),
+      [
+        evidence,
+        reviews,
+      ]
     );
 
-  useEffect(() => {
-    const controller =
-      new AbortController();
+  const filteredRows =
+    useMemo(
+      () =>
+        filterReviewRows(
+          rows,
+          filters
+        ),
+      [
+        rows,
+        filters,
+      ]
+    );
 
-    void Promise.all([
-      fetchEvidenceCustodyRegistry(
-        controller.signal
-      ),
-      fetchEvidenceReviews(
-        controller.signal
-      ),
-    ])
-      .then(
-        ([
-          loadedEvidence,
-          loadedReviews,
-        ]) => {
-          setEvidence(
-            loadedEvidence
-          );
+  const safePage =
+    clampPage(
+      page,
+      filteredRows.length,
+      LIST_PAGE_SIZE
+    );
 
-          setReviews(
-            loadedReviews
-          );
+  const pageRows =
+    paginate(
+      filteredRows,
+      safePage,
+      LIST_PAGE_SIZE
+    );
 
-          setError(
-            null
-          );
-        }
-      )
-      .catch(
-        (
-          loadError: unknown
-        ) => {
-          if (
-            loadError instanceof DOMException &&
-            loadError.name ===
-              "AbortError"
-          ) {
-            return;
-          }
-
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load evidence review governance."
-          );
-        }
-      );
-
-    return () =>
-      controller.abort();
-  }, []);
-
+  // A choice that is gone from the data (or never made) falls back to
+  // the first record that the filters show.
   const activeEvidenceId =
     selectedEvidenceId &&
     evidence.some(
@@ -147,24 +227,29 @@ export function EvidenceReviewGovernance() {
         selectedEvidenceId
     )
       ? selectedEvidenceId
-      : evidence[0]?.id ??
+      : filteredRows[0]?.evidence.id ??
+        evidence[0]?.id ??
         "";
 
-  const selectedEvidence =
+  const selectedRow =
     useMemo(
       () =>
-        evidence.find(
+        rows.find(
           (
-            item
+            row
           ) =>
-            item.id ===
+            row.evidence.id ===
             activeEvidenceId
         ) ?? null,
       [
-        evidence,
+        rows,
         activeEvidenceId,
       ]
     );
+
+  const selectedEvidence =
+    selectedRow?.evidence ??
+    null;
 
   const selectedReviews =
     useMemo(
@@ -220,65 +305,97 @@ export function EvidenceReviewGovernance() {
       ]
     );
 
-  async function reload() {
-    const [
-      loadedEvidence,
-      loadedReviews,
-    ] =
-      await Promise.all([
-        fetchEvidenceCustodyRegistry(),
-        fetchEvidenceReviews(),
-      ]);
+  const blockers =
+    selectedRow
+      ? reviewBlockers(
+          {
+            canReview,
+            evidence:
+              selectedRow.evidence,
+            current:
+              selectedRow.current,
+            username:
+              session.username,
+          }
+        )
+      : [];
 
-    setEvidence(
-      loadedEvidence
+  function updateFilters(
+    patch: Partial<ReviewFilters>
+  ) {
+    setFilters(
+      (current) => ({
+        ...current,
+        ...patch,
+      })
     );
 
-    setReviews(
-      loadedReviews
+    setPage(
+      0
+    );
+  }
+
+  function resetFilters() {
+    setFilters(
+      DEFAULT_REVIEW_FILTERS
+    );
+
+    setPage(
+      0
+    );
+  }
+
+  function applyFilters(
+    next: ReviewFilters
+  ) {
+    setFilters(
+      next
+    );
+
+    setPage(
+      0
     );
   }
 
   async function submitReview() {
     if (
-      !selectedEvidence
+      !selectedEvidence ||
+      blockers.length > 0
     ) {
       return;
     }
 
-    try {
-      setAction(
-        "review"
-      );
+    const evidenceId =
+      selectedEvidence.id;
 
-      setError(
-        null
-      );
+    setNotice(
+      null
+    );
 
-      await reviewEvidence(
-        selectedEvidence.id,
-        decision,
-        reviewReason
-      );
+    await run(
+      `review:${evidenceId}`,
+      () =>
+        reviewEvidence(
+          evidenceId,
+          decision,
+          reviewReason.trim()
+        ),
+      "Unable to record evidence review.",
+      (created) => {
+        setNotice(
+          `Recorded review version ${created.reviewVersion} (${humanize(created.reviewDecision)}) for ${created.evidenceReference}.`
+        );
 
-      await reload();
-
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Unable to record evidence review."
-      );
-
-    } finally {
-      setAction(
-        null
-      );
-    }
+        load.reload();
+      }
+    );
   }
 
   return (
-    <section className="panel evidence-review-panel">
+    <section
+      className="panel evidence-review-panel"
+      aria-busy={load.loading}
+    >
       <div className="panel-heading evidence-review-heading">
         <div>
           <div className="eyebrow">
@@ -307,12 +424,34 @@ export function EvidenceReviewGovernance() {
         </div>
       </div>
 
-      {error && (
-        <div className="evidence-review-error">
-          {error}
-        </div>
+      {notice && (
+        <SuccessBanner
+          message={notice}
+          onDismiss={() =>
+            setNotice(null)
+          }
+        />
       )}
 
+      {load.error && (
+        <ErrorState
+          compact
+          title="Unable to load evidence reviews"
+          message={load.error}
+          onRetry={load.reload}
+        />
+      )}
+
+      {load.data === null &&
+        load.loading && (
+          <LoadingState
+            compact
+            label="Loading evidence reviews"
+          />
+        )}
+
+      {load.data !== null && (
+      <>
       <div className="evidence-review-metrics">
         <Metric
           label="Evidence"
@@ -336,21 +475,67 @@ export function EvidenceReviewGovernance() {
         />
       </div>
 
+      {evidence.length > 0 && (
+        <>
+          <ReviewCoverage
+            rows={rows}
+          />
+
+          <ReviewFilterBar
+            rows={rows}
+            filters={filters}
+            filtered={filteredRows}
+            refreshing={
+              load.loading
+            }
+            onChange={updateFilters}
+            onReset={resetFilters}
+            onApply={applyFilters}
+            onRefresh={load.reload}
+          />
+        </>
+      )}
+
       <div className="evidence-review-layout">
         <div className="evidence-review-list">
-          {evidence.map(
+          {evidence.length === 0 && (
+            <EmptyState
+              compact
+              icon={
+                <FileSearch
+                  size={22}
+                  aria-hidden="true"
+                />
+              }
+              title="No evidence to review"
+              message="Register evidence in Chain of custody and verify its integrity to make it reviewable."
+            />
+          )}
+
+          {evidence.length > 0 &&
+            filteredRows.length === 0 && (
+              <EmptyState
+                compact
+                title="No evidence matches these filters"
+                message="Try a different search or clear the filters."
+                action={
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={resetFilters}
+                  >
+                    Reset filters
+                  </button>
+                }
+              />
+            )}
+
+          {pageRows.map(
             (
-              item
+              row
             ) => {
-              const currentReview =
-                reviews.find(
-                  (
-                    review
-                  ) =>
-                    review.evidenceId ===
-                      item.id &&
-                    review.lineageCurrent
-                );
+              const item =
+                row.evidence;
 
               return (
                 <button
@@ -358,6 +543,12 @@ export function EvidenceReviewGovernance() {
                     item.id
                   }
                   type="button"
+                  aria-current={
+                    item.id ===
+                    activeEvidenceId
+                      ? "true"
+                      : undefined
+                  }
                   className={
                     item.id ===
                     activeEvidenceId
@@ -392,21 +583,27 @@ export function EvidenceReviewGovernance() {
 
                   <div
                     className={
-                      currentReview
-                        ? "evidence-review-list-state reviewed"
+                      row.current
+                        ? `evidence-review-list-state reviewed ui-ev-rs-${row.state.toLowerCase()}`
                         : "evidence-review-list-state"
                     }
                   >
-                    {currentReview
-                      ? humanize(
-                          currentReview.reviewDecision
-                        )
-                      : "Not reviewed"}
+                    {reviewStateLabel(
+                      row.state
+                    )}
                   </div>
                 </button>
               );
             }
           )}
+
+          <Pager
+            page={safePage}
+            pageSize={LIST_PAGE_SIZE}
+            total={filteredRows.length}
+            label="Evidence pages"
+            onPage={setPage}
+          />
         </div>
 
         <div className="evidence-review-workspace">
@@ -494,11 +691,21 @@ export function EvidenceReviewGovernance() {
                     }
                     onChange={(
                       event
-                    ) =>
+                    ) => {
                       setDecision(
                         event.target.value
-                      )
-                    }
+                      );
+
+                      setReviewReason(
+                        (
+                          current
+                        ) =>
+                          reasonForDecision(
+                            current,
+                            event.target.value
+                          )
+                      );
+                    }}
                   >
                     {DECISIONS.map(
                       (
@@ -549,17 +756,15 @@ export function EvidenceReviewGovernance() {
                   />
                 </label>
 
-                <button
-                  type="button"
+                <ConfirmButton
                   className="primary-button"
+                  confirmLabel="Yes, record review"
                   disabled={
-                    !canReview ||
                     action !== null ||
-                    selectedEvidence.currentStatus !==
-                      "VERIFIED" ||
+                    blockers.length > 0 ||
                     !reviewReason.trim()
                   }
-                  onClick={() =>
+                  onConfirm={() =>
                     void submitReview()
                   }
                 >
@@ -568,11 +773,54 @@ export function EvidenceReviewGovernance() {
                   />
 
                   {action ===
-                  "review"
+                  `review:${selectedEvidence.id}`
                     ? "Recording..."
                     : "Record review"}
-                </button>
+                </ConfirmButton>
               </div>
+
+              {blockers.length > 0 && (
+                <div
+                  className="ui-notice"
+                  role="status"
+                >
+                  <ShieldCheck
+                    size={15}
+                    aria-hidden="true"
+                  />
+
+                  <div>
+                    <strong>
+                      A review cannot be recorded yet
+                    </strong>
+
+                    <ul className="ui-ev-blockers">
+                      {blockers.map(
+                        (
+                          blocker
+                        ) => (
+                          <li
+                            key={
+                              blocker
+                            }
+                          >
+                            {
+                              blocker
+                            }
+                          </li>
+                        )
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <ErrorBanner
+                  message={error}
+                  onDismiss={clearError}
+                />
+              )}
 
               <div className="evidence-review-history">
                 <div className="evidence-review-history-heading">
@@ -592,6 +840,21 @@ export function EvidenceReviewGovernance() {
                     }
                     {" versions"}
                   </span>
+
+                  <ExportButton
+                    label="Export history"
+                    disabled={
+                      selectedReviews.length ===
+                      0
+                    }
+                    onExport={() =>
+                      exportRowsAsCsv(
+                        `Evidence review history ${selectedEvidence.evidenceReference}`,
+                        selectedReviews,
+                        REVIEW_HISTORY_COLUMNS
+                      )
+                    }
+                  />
                 </div>
 
                 {selectedReviews.length ===
@@ -718,6 +981,8 @@ export function EvidenceReviewGovernance() {
           )}
         </div>
       </div>
+      </>
+      )}
     </section>
   );
 }
@@ -759,41 +1024,5 @@ function Anchor({
         {value}
       </code>
     </div>
-  );
-}
-
-function humanize(
-  value: string
-) {
-  return value
-    .toLowerCase()
-    .replaceAll(
-      "_",
-      " "
-    )
-    .replace(
-      /\b\w/g,
-      (
-        character
-      ) =>
-        character.toUpperCase()
-    );
-}
-
-function formatDateTime(
-  value: string
-) {
-  return new Intl.DateTimeFormat(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  ).format(
-    new Date(
-      value
-    )
   );
 }

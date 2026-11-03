@@ -1,9 +1,9 @@
 "use client";
 
 import {
-  History,
   LockKeyhole,
   Radar,
+  RefreshCw,
   Save,
   Settings2,
   ShieldCheck,
@@ -11,9 +11,10 @@ import {
   ToggleRight,
 } from "lucide-react";
 import {
-  useEffect,
+  useCallback,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
 
 import {
@@ -23,10 +24,65 @@ import {
   type DetectionRule,
   type DetectionRuleChange,
 } from "@/lib/api";
+import { exportRowsAsCsv } from "@/lib/csv";
+import {
+  ALL,
+  countOptions,
+  useActionRunner,
+  useFilterState,
+} from "@/lib/gv-common";
+import {
+  DEFAULT_RULE_FILTERS,
+  RULE_COLUMNS,
+  RULE_STATUS_ORDER,
+  SEVERITY_ORDER,
+  filterRules,
+  ruleStatus,
+  type RuleFilters,
+} from "@/lib/gv-rules";
+import { plural } from "@/lib/list-utils";
+import { formatDateTime } from "@/lib/format";
+import { useLoad } from "@/lib/use-load";
 
 import {
   useAuth,
 } from "./auth-context";
+import {
+  Banner,
+  LoadNotice,
+} from "./gv-parts";
+import { RuleHistory } from "./gv-rule-history";
+import { ConfirmButton } from "./confirm-button";
+import {
+  ChipGroup,
+  ExportButton,
+  ResetButton,
+  ResultCount,
+  SavedViews,
+  SearchField,
+  SelectField,
+  Toolbar,
+  type Option,
+} from "./list-tools";
+import { EmptyState } from "./state-card";
+
+interface HistoryResult {
+  ruleKey: string | null;
+  items: DetectionRuleChange[];
+}
+
+const SORT_OPTIONS: readonly Option<string>[] = [
+  { value: "name", label: "Sort by name" },
+  { value: "risk", label: "Sort by risk score" },
+  { value: "updated", label: "Sort by last update" },
+];
+
+const SEVERITY_TONES = {
+  CRITICAL: "danger",
+  HIGH: "danger",
+  MEDIUM: "warning",
+  LOW: "ok",
+} as const;
 
 export function RuleGovernance() {
   const {
@@ -39,183 +95,229 @@ export function RuleGovernance() {
       "ADMIN"
     );
 
-  const [rules, setRules] =
-    useState<DetectionRule[]>([]);
+  const fetchRules =
+    useCallback(
+      (signal: AbortSignal) =>
+        fetchDetectionRules(
+          signal
+        ),
+      []
+    );
+
+  const {
+    data: rules,
+    error,
+    loading,
+    reload: reloadRules,
+  } = useLoad(
+    fetchRules,
+    "Unable to load AML rule configuration."
+  );
+
+  const {
+    filters,
+    current,
+    hasFilters,
+    update,
+    reset,
+    apply,
+  } = useFilterState<RuleFilters>(
+    DEFAULT_RULE_FILTERS
+  );
 
   const [selectedRuleKey, setSelectedRuleKey] =
     useState<string | null>(
       null
     );
 
-  const [history, setHistory] =
-    useState<
-      DetectionRuleChange[]
-    >([]);
+  const runner =
+    useActionRunner();
 
-  const [pending, setPending] =
-    useState<string | null>(
-      null
-    );
-
-  const [error, setError] =
-    useState<string | null>(
-      null
-    );
-
-  useEffect(() => {
-    const controller =
-      new AbortController();
-
-    void fetchDetectionRules(
-      controller.signal
-    )
-      .then((items) => {
-        setRules(items);
-
-        if (
-          items.length > 0
-        ) {
-          setSelectedRuleKey(
-            (current) =>
-              current &&
-              items.some(
-                (item) =>
-                  item.ruleKey ===
-                  current
-              )
-                ? current
-                : items[0]
-                    .ruleKey
-          );
-        }
-      })
-      .catch(
-        (loadError: unknown) => {
-          if (
-            loadError instanceof DOMException &&
-            loadError.name ===
-              "AbortError"
-          ) {
-            return;
-          }
-
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load AML rule configuration."
-          );
-        }
-      );
-
-    return () =>
-      controller.abort();
-  }, []);
-
-  useEffect(() => {
-    if (!selectedRuleKey) {
-      return;
-    }
-
-    const controller =
-      new AbortController();
-
-    void fetchDetectionRuleHistory(
-      selectedRuleKey,
-      controller.signal
-    )
-      .then(setHistory)
-      .catch(
-        () => undefined
-      );
-
-    return () =>
-      controller.abort();
-  }, [
-    selectedRuleKey,
-  ]);
-
-  const selectedRule =
+  const filtered =
     useMemo(
       () =>
-        rules.find(
-          (rule) =>
-            rule.ruleKey ===
-            selectedRuleKey
-        ) ?? null,
+        filterRules(
+          rules ?? [],
+          filters
+        ),
       [
         rules,
-        selectedRuleKey,
+        filters,
       ]
     );
 
-  async function refresh() {
-    const updated =
-      await fetchDetectionRules();
+  // The selection follows the list: a rule hidden by the filters
+  // gives way to the first rule that is still shown.
+  const selectedRule =
+    filtered.find(
+      (rule) =>
+        rule.ruleKey ===
+        selectedRuleKey
+    ) ??
+    filtered[0] ??
+    null;
 
-    setRules(updated);
+  const activeRuleKey =
+    selectedRule?.ruleKey ??
+    null;
 
-    if (selectedRuleKey) {
-      setHistory(
-        await fetchDetectionRuleHistory(
-          selectedRuleKey
-        )
-      );
-    }
-  }
+  const fetchHistory =
+    useCallback(
+      async (
+        signal: AbortSignal
+      ): Promise<HistoryResult> => {
+        if (
+          activeRuleKey === null
+        ) {
+          return {
+            ruleKey: null,
+            items: [],
+          };
+        }
 
-  async function toggleRule(
+        return {
+          ruleKey:
+            activeRuleKey,
+          items:
+            await fetchDetectionRuleHistory(
+              activeRuleKey,
+              signal
+            ),
+        };
+      },
+      [
+        activeRuleKey,
+      ]
+    );
+
+  const {
+    data: historyResult,
+    error: historyError,
+    reload: reloadHistory,
+  } = useLoad(
+    fetchHistory,
+    "Unable to load version history."
+  );
+
+  // Data that belongs to the previously selected rule is not shown.
+  const history =
+    historyResult !== null &&
+    historyResult.ruleKey ===
+      activeRuleKey
+      ? historyResult.items
+      : null;
+
+  const statusOptions =
+    useMemo(
+      () =>
+        countOptions(
+          filterRules(
+            rules ?? [],
+            {
+              ...filters,
+              status: ALL,
+            }
+          ).map(ruleStatus),
+          "All",
+          {
+            order: RULE_STATUS_ORDER,
+            always: RULE_STATUS_ORDER,
+            keep: filters.status,
+            tones: {
+              ENABLED: "ok",
+            },
+          }
+        ),
+      [
+        rules,
+        filters,
+      ]
+    );
+
+  const severityOptions =
+    useMemo(
+      () =>
+        countOptions(
+          filterRules(
+            rules ?? [],
+            {
+              ...filters,
+              severity: ALL,
+            }
+          ).map(
+            (rule) =>
+              rule.severity
+          ),
+          "All severities",
+          {
+            order: SEVERITY_ORDER,
+            always: SEVERITY_ORDER,
+            keep: filters.severity,
+            tones: SEVERITY_TONES,
+          }
+        ),
+      [
+        rules,
+        filters,
+      ]
+    );
+
+  // Nothing may change while a change is being saved or the list is
+  // being refreshed: the next save would be built from stale values.
+  const busy =
+    runner.pending !== null ||
+    loading;
+
+  function toggleRule(
     rule: DetectionRule
   ) {
     if (!canManage) {
       return;
     }
 
-    try {
-      setPending(
-        rule.ruleKey
-      );
+    void runner.run(
+      `toggle:${rule.ruleKey}`,
+      async () => {
+        await updateDetectionRule(
+          rule.ruleKey,
+          {
+            enabled:
+              !rule.enabled,
+            severity:
+              rule.severity,
+            riskScore:
+              rule.riskScore,
+            primaryAmountThreshold:
+              rule.primaryAmountThreshold,
+            secondaryAmountThreshold:
+              rule.secondaryAmountThreshold,
+            aggregateAmountThreshold:
+              rule.aggregateAmountThreshold,
+            minimumOccurrences:
+              rule.minimumOccurrences,
+            windowMinutes:
+              rule.windowMinutes,
+            changeSummary:
+              rule.enabled
+                ? "Rule disabled from governance console."
+                : "Rule enabled from governance console.",
+          }
+        );
 
-      setError(null);
+        reloadRules();
+        reloadHistory();
 
-      await updateDetectionRule(
-        rule.ruleKey,
-        {
-          enabled:
-            !rule.enabled,
-          severity:
-            rule.severity,
-          riskScore:
-            rule.riskScore,
-          primaryAmountThreshold:
-            rule.primaryAmountThreshold,
-          secondaryAmountThreshold:
-            rule.secondaryAmountThreshold,
-          aggregateAmountThreshold:
-            rule.aggregateAmountThreshold,
-          minimumOccurrences:
-            rule.minimumOccurrences,
-          windowMinutes:
-            rule.windowMinutes,
-          changeSummary:
-            rule.enabled
-              ? "Rule disabled from governance console."
-              : "Rule enabled from governance console.",
-        }
-      );
-
-      await refresh();
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Unable to update detection rule."
-      );
-    } finally {
-      setPending(null);
-    }
+        return `${rule.displayName} is now ${
+          rule.enabled
+            ? "disabled"
+            : "enabled"
+        }.`;
+      },
+      "Unable to update detection rule."
+    );
   }
 
-  async function saveRiskScore(
+  function saveRiskScore(
     rule: DetectionRule,
     riskScore: number
   ) {
@@ -223,50 +325,46 @@ export function RuleGovernance() {
       return;
     }
 
-    try {
-      setPending(
-        rule.ruleKey
-      );
+    void runner.run(
+      `score:${rule.ruleKey}`,
+      async () => {
+        await updateDetectionRule(
+          rule.ruleKey,
+          {
+            enabled:
+              rule.enabled,
+            severity:
+              rule.severity,
+            riskScore,
+            primaryAmountThreshold:
+              rule.primaryAmountThreshold,
+            secondaryAmountThreshold:
+              rule.secondaryAmountThreshold,
+            aggregateAmountThreshold:
+              rule.aggregateAmountThreshold,
+            minimumOccurrences:
+              rule.minimumOccurrences,
+            windowMinutes:
+              rule.windowMinutes,
+            changeSummary:
+              `Risk score changed to ${riskScore}.`,
+          }
+        );
 
-      setError(null);
+        reloadRules();
+        reloadHistory();
 
-      await updateDetectionRule(
-        rule.ruleKey,
-        {
-          enabled:
-            rule.enabled,
-          severity:
-            rule.severity,
-          riskScore,
-          primaryAmountThreshold:
-            rule.primaryAmountThreshold,
-          secondaryAmountThreshold:
-            rule.secondaryAmountThreshold,
-          aggregateAmountThreshold:
-            rule.aggregateAmountThreshold,
-          minimumOccurrences:
-            rule.minimumOccurrences,
-          windowMinutes:
-            rule.windowMinutes,
-          changeSummary:
-            `Risk score changed to ${riskScore}.`,
-        }
-      );
-
-      await refresh();
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Unable to save rule score."
-      );
-    } finally {
-      setPending(null);
-    }
+        return `Risk score of ${rule.displayName} saved as ${riskScore}.`;
+      },
+      "Unable to save rule score."
+    );
   }
 
   return (
-    <section className="panel rule-governance-panel">
+    <section
+      className="panel rule-governance-panel"
+      aria-busy={loading}
+    >
       <div className="panel-heading rule-governance-heading">
         <div>
           <div className="eyebrow">
@@ -295,10 +393,12 @@ export function RuleGovernance() {
           {canManage ? (
             <ShieldCheck
               size={14}
+              aria-hidden="true"
             />
           ) : (
             <LockKeyhole
               size={14}
+              aria-hidden="true"
             />
           )}
 
@@ -308,146 +408,329 @@ export function RuleGovernance() {
         </div>
       </div>
 
-      {error && (
-        <div className="rule-error">
-          {error}
-        </div>
+      {runner.error && (
+        <Banner
+          kind="error"
+          onDismiss={runner.dismiss}
+        >
+          {runner.error}
+        </Banner>
       )}
 
-      <div className="rule-governance-layout">
-        <div className="rule-table-wrap">
-          <div className="rule-table-header">
-            <span>
-              {rules.length}
-              {" "}rules
-            </span>
+      {runner.notice && (
+        <Banner
+          kind="ok"
+          onDismiss={runner.dismiss}
+        >
+          {runner.notice}
+        </Banner>
+      )}
 
-            <span>
-              {
-                rules.filter(
-                  (rule) =>
-                    rule.enabled
-                ).length
+      <LoadNotice
+        data={rules}
+        error={error}
+        onRetry={reloadRules}
+        label="Loading AML rules"
+        errorTitle="Unable to load AML rules"
+      />
+
+      {rules !== null &&
+        rules.length === 0 && (
+          <EmptyState
+            icon={
+              <Settings2
+                size={24}
+                aria-hidden="true"
+              />
+            }
+            title="No detection rules configured"
+            message="Rules appear here once the backend has seeded its AML rule catalog."
+          />
+        )}
+
+      {rules !== null &&
+        rules.length > 0 && (
+        <>
+          <Toolbar label="Filter rules">
+            <SearchField
+              label="Search rules"
+              placeholder="Search name, key or description..."
+              value={filters.q}
+              onChange={(q) =>
+                update({
+                  q,
+                })
               }
-              {" "}enabled
-            </span>
-          </div>
+            />
 
-          <div className="rule-list">
-            {rules.map(
-              (rule) => (
-                <button
-                  type="button"
-                  key={
-                    rule.ruleKey
-                  }
-                  className={
-                    selectedRuleKey ===
-                    rule.ruleKey
-                      ? "rule-row selected"
-                      : "rule-row"
-                  }
-                  onClick={() =>
-                    setSelectedRuleKey(
-                      rule.ruleKey
-                    )
-                  }
-                >
-                  <div className="rule-row-icon">
-                    <Radar
-                      size={15}
-                    />
-                  </div>
-
-                  <div className="rule-row-copy">
-                    <strong>
-                      {
-                        rule.displayName
-                      }
-                    </strong>
-
-                    <span>
-                      {
-                        rule.ruleKey
-                      }
-                      {" · v"}
-                      {
-                        rule.version
-                      }
-                    </span>
-                  </div>
-
-                  <div className="rule-row-state">
-                    <span
-                      className={
-                        rule.enabled
-                          ? "rule-state enabled"
-                          : "rule-state disabled"
-                      }
-                    >
-                      {rule.enabled
-                        ? "Enabled"
-                        : "Disabled"}
-                    </span>
-
-                    <strong>
-                      {
-                        rule.riskScore
-                      }
-                    </strong>
-                  </div>
-                </button>
-              )
-            )}
-          </div>
-        </div>
-
-        <div className="rule-detail">
-          {selectedRule ? (
-            <RuleDetail
-              rule={selectedRule}
-              canManage={
-                canManage
+            <SelectField
+              label="Sort rules"
+              value={filters.sort}
+              options={SORT_OPTIONS}
+              onChange={(sort) =>
+                update({
+                  sort,
+                })
               }
-              busy={
-                pending ===
-                selectedRule.ruleKey
+            />
+
+            <ResetButton
+              disabled={!hasFilters}
+              onClick={reset}
+            />
+
+            <ExportButton
+              label="Export rules"
+              disabled={
+                filtered.length === 0
               }
-              history={
-                history
-              }
-              onToggle={() =>
-                void toggleRule(
-                  selectedRule
-                )
-              }
-              onRiskSave={(
-                score
-              ) =>
-                void saveRiskScore(
-                  selectedRule,
-                  score
+              onExport={() =>
+                exportRowsAsCsv(
+                  "detection-rules",
+                  filtered,
+                  RULE_COLUMNS
                 )
               }
             />
-          ) : (
-            <div className="rule-empty">
-              <Settings2
-                size={27}
+
+            <button
+              type="button"
+              className="ui-icon-text-button"
+              disabled={loading}
+              onClick={reloadRules}
+            >
+              <RefreshCw
+                size={14}
+                className={
+                  loading
+                    ? "ui-spin"
+                    : undefined
+                }
+                aria-hidden="true"
               />
 
-              <strong>
-                Rule catalog
-              </strong>
+              Refresh
+            </button>
+          </Toolbar>
 
-              <span>
-                Select a rule to inspect
-                its governance settings.
-              </span>
+          <div className="ui-chips-row">
+            <ChipGroup
+              label="Filter by status"
+              value={filters.status}
+              options={statusOptions}
+              onChange={(status) =>
+                update({
+                  status,
+                })
+              }
+            />
+          </div>
+
+          <div className="ui-chips-row">
+            <ChipGroup
+              label="Filter by severity"
+              value={filters.severity}
+              options={severityOptions}
+              onChange={(severity) =>
+                update({
+                  severity,
+                })
+              }
+            />
+          </div>
+
+          <SavedViews<RuleFilters>
+            storageKey="fcg.views.rules"
+            current={current}
+            canSave={hasFilters}
+            onApply={apply}
+          />
+
+          <ResultCount
+            shown={filtered.length}
+            total={rules.length}
+            noun={plural(
+              rules.length,
+              "rule"
+            )}
+            filtered={hasFilters}
+          />
+
+          <div className="rule-governance-layout">
+            <div className="rule-table-wrap">
+              <div className="rule-table-header">
+                <span>
+                  {
+                    filtered.filter(
+                      (rule) =>
+                        rule.enabled
+                    ).length
+                  }
+                  {" "}enabled
+                </span>
+
+                <span>
+                  {
+                    filtered.filter(
+                      (rule) =>
+                        !rule.enabled
+                    ).length
+                  }
+                  {" "}disabled
+                </span>
+              </div>
+
+              {filtered.length === 0 && (
+                <EmptyState
+                  compact
+                  title="No rules match these filters"
+                  message="Try a different search or clear the filters."
+                  action={
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={reset}
+                    >
+                      Clear filters
+                    </button>
+                  }
+                />
+              )}
+
+              <div className="rule-list">
+                {filtered.map(
+                  (rule) => (
+                    <button
+                      type="button"
+                      key={
+                        rule.ruleKey
+                      }
+                      className={
+                        activeRuleKey ===
+                        rule.ruleKey
+                          ? "rule-row selected"
+                          : "rule-row"
+                      }
+                      aria-pressed={
+                        activeRuleKey ===
+                        rule.ruleKey
+                      }
+                      onClick={() =>
+                        setSelectedRuleKey(
+                          rule.ruleKey
+                        )
+                      }
+                    >
+                      <div className="rule-row-icon">
+                        <Radar
+                          size={15}
+                          aria-hidden="true"
+                        />
+                      </div>
+
+                      <div className="rule-row-copy">
+                        <strong>
+                          {
+                            rule.displayName
+                          }
+                        </strong>
+
+                        <span>
+                          {
+                            rule.ruleKey
+                          }
+                          {" · v"}
+                          {
+                            rule.version
+                          }
+                        </span>
+                      </div>
+
+                      <div className="rule-row-state">
+                        <span
+                          className={
+                            rule.enabled
+                              ? "rule-state enabled"
+                              : "rule-state disabled"
+                          }
+                        >
+                          {rule.enabled
+                            ? "Enabled"
+                            : "Disabled"}
+                        </span>
+
+                        <strong>
+                          {
+                            rule.riskScore
+                          }
+                        </strong>
+                      </div>
+                    </button>
+                  )
+                )}
+              </div>
             </div>
-          )}
-        </div>
-      </div>
+
+            <div className="rule-detail">
+              {selectedRule ? (
+                <RuleDetail
+                  rule={selectedRule}
+                  canManage={
+                    canManage
+                  }
+                  busy={busy}
+                  onToggle={() =>
+                    toggleRule(
+                      selectedRule
+                    )
+                  }
+                  onRiskSave={(
+                    score
+                  ) =>
+                    saveRiskScore(
+                      selectedRule,
+                      score
+                    )
+                  }
+                  historySlot={
+                    <RuleHistory
+                      ruleKey={
+                        selectedRule.ruleKey
+                      }
+                      history={
+                        history
+                      }
+                      error={
+                        historyError
+                      }
+                      onRetry={
+                        reloadHistory
+                      }
+                    />
+                  }
+                />
+              ) : (
+                <div className="rule-empty">
+                  <Settings2
+                    size={27}
+                    aria-hidden="true"
+                  />
+
+                  <strong>
+                    Rule catalog
+                  </strong>
+
+                  <span>
+                    No rule to show.
+                    Clear the filters to
+                    inspect a rule.
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </section>
   );
 }
@@ -456,14 +739,14 @@ function RuleDetail({
   rule,
   canManage,
   busy,
-  history,
+  historySlot,
   onToggle,
   onRiskSave,
 }: {
   rule: DetectionRule;
   canManage: boolean;
   busy: boolean;
-  history: DetectionRuleChange[];
+  historySlot: ReactNode;
   onToggle: () => void;
   onRiskSave:
     (score: number) => void;
@@ -474,7 +757,7 @@ function RuleDetail({
       rule={rule}
       canManage={canManage}
       busy={busy}
-      history={history}
+      historySlot={historySlot}
       onToggle={onToggle}
       onRiskSave={onRiskSave}
     />
@@ -485,14 +768,14 @@ function RuleDetailEditor({
   rule,
   canManage,
   busy,
-  history,
+  historySlot,
   onToggle,
   onRiskSave,
 }: {
   rule: DetectionRule;
   canManage: boolean;
   busy: boolean;
-  history: DetectionRuleChange[];
+  historySlot: ReactNode;
   onToggle: () => void;
   onRiskSave:
     (score: number) => void;
@@ -517,35 +800,51 @@ function RuleDetailEditor({
           <p>
             {rule.description}
           </p>
+
+          <p className="ui-gv-meta">
+            Last updated by
+            {" "}
+            {rule.updatedBy}
+            {" · "}
+            {formatDateTime(
+              rule.updatedAt
+            )}
+          </p>
         </div>
 
-        <button
-          type="button"
+        <ConfirmButton
           className={
             rule.enabled
               ? "rule-toggle enabled"
               : "rule-toggle"
           }
+          confirmLabel={
+            rule.enabled
+              ? "Yes, disable rule"
+              : "Yes, enable rule"
+          }
           disabled={
             !canManage ||
             busy
           }
-          onClick={onToggle}
+          onConfirm={onToggle}
         >
           {rule.enabled ? (
             <ToggleRight
               size={18}
+              aria-hidden="true"
             />
           ) : (
             <ToggleLeft
               size={18}
+              aria-hidden="true"
             />
           )}
 
           {rule.enabled
             ? "Enabled"
             : "Disabled"}
-        </button>
+        </ConfirmButton>
       </div>
 
       <div className="rule-metrics">
@@ -656,70 +955,7 @@ function RuleDetailEditor({
         </button>
       </div>
 
-      <div className="rule-history">
-        <div className="rule-history-heading">
-          <div>
-            <History
-              size={14}
-            />
-
-            <strong>
-              Version history
-            </strong>
-          </div>
-
-          <span>
-            {
-              history.length
-            }
-          </span>
-        </div>
-
-        {history.length ===
-          0 && (
-          <div className="rule-history-empty">
-            No version history.
-          </div>
-        )}
-
-        {history.map(
-          (change) => (
-            <article
-              key={
-                change.id
-              }
-              className="rule-history-item"
-            >
-              <div className="rule-version">
-                v
-                {
-                  change.version
-                }
-              </div>
-
-              <div>
-                <strong>
-                  {
-                    change
-                      .changeSummary
-                  }
-                </strong>
-
-                <span>
-                  {
-                    change
-                      .changedBy
-                  }
-                  {" · "}
-                  {formatDateTime(
-                    change.changedAt
-                  )}
-                </span>
-              </div>
-            </article>
-          )
-        )}
-      </div>
+      {historySlot}
     </div>
   );
 }
@@ -762,21 +998,5 @@ function Threshold({
             ).format(value)}
       </strong>
     </div>
-  );
-}
-
-function formatDateTime(
-  value: string
-) {
-  return new Intl.DateTimeFormat(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  ).format(
-    new Date(value)
   );
 }

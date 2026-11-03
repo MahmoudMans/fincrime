@@ -10,14 +10,22 @@ import {
 } from "lucide-react";
 import {
   type FormEvent,
+  useCallback,
+  useEffect,
   useState,
 } from "react";
 
 import {
   authenticateUser,
   setApiAccessToken,
+  setUnauthorizedHandler,
   type AuthLoginResponse,
 } from "@/lib/api";
+import {
+  clearSession,
+  loadSession,
+  saveSession,
+} from "@/lib/session";
 import {
   AuthProvider,
 } from "./auth-context";
@@ -58,20 +66,44 @@ const demoAccounts = [
   },
 ];
 
+/**
+ * The demo identities (and their passwords) are convenient locally but
+ * are shipped in the browser bundle. Build with
+ * NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS=false to remove the picker and start
+ * with empty credential fields.
+ */
+const SHOW_DEMO_ACCOUNTS =
+  process.env.NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS !== "false";
+
+const SESSION_EXPIRED_MESSAGE =
+  "Your session has expired. Please sign in again.";
+
 export function AuthShell() {
   const [session, setSession] =
     useState<
       AuthLoginResponse | null
     >(null);
 
+  // True until sessionStorage has been checked, so a signed-in user
+  // does not see the login form flash on every refresh.
+  const [restoring, setRestoring] =
+    useState(true);
+
+  const [notice, setNotice] =
+    useState<string | null>(null);
+
   const [username, setUsername] =
     useState(
-      demoAccounts[0].username
+      SHOW_DEMO_ACCOUNTS
+        ? demoAccounts[0].username
+        : ""
     );
 
   const [password, setPassword] =
     useState(
-      demoAccounts[0].password
+      SHOW_DEMO_ACCOUNTS
+        ? demoAccounts[0].password
+        : ""
     );
 
   const [busy, setBusy] =
@@ -101,6 +133,10 @@ export function AuthShell() {
         authenticated.accessToken
       );
 
+      saveSession(authenticated);
+
+      setNotice(null);
+
       setSession(
         authenticated
       );
@@ -117,11 +153,71 @@ export function AuthShell() {
     }
   }
 
+  const endSession = useCallback(
+    (message: string | null) => {
+      setApiAccessToken(null);
+      clearSession();
+      setSession(null);
+      setError(null);
+      setNotice(message);
+    },
+    []
+  );
+
   function logout() {
-    setApiAccessToken(null);
-    setSession(null);
-    setError(null);
+    endSession(null);
   }
+
+  // Restore a session that survived a page refresh. sessionStorage only
+  // exists in the browser, so it cannot be read during render without a
+  // server/client mismatch. The state is applied from a timer callback
+  // (not synchronously in the effect body), and the sign-in form stays
+  // hidden until it has been applied.
+  useEffect(() => {
+    const restored = loadSession();
+
+    const timer = window.setTimeout(() => {
+      if (restored) {
+        setApiAccessToken(restored.accessToken);
+        setSession(restored);
+      }
+
+      setRestoring(false);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  // Sign out when the token expires, or as soon as any API call
+  // reports that it is no longer valid.
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    setUnauthorizedHandler(() =>
+      endSession(SESSION_EXPIRED_MESSAGE)
+    );
+
+    const remaining =
+      Date.parse(session.expiresAt) - Date.now();
+
+    // setTimeout cannot hold delays beyond about 24 days.
+    const timer = Number.isNaN(remaining)
+      ? undefined
+      : window.setTimeout(
+          () => endSession(SESSION_EXPIRED_MESSAGE),
+          Math.min(Math.max(remaining, 0), 2_000_000_000)
+        );
+
+    return () => {
+      setUnauthorizedHandler(null);
+
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [session, endSession]);
 
   function chooseAccount(
     account:
@@ -136,6 +232,16 @@ export function AuthShell() {
     );
 
     setError(null);
+  }
+
+  if (restoring) {
+    return (
+      <main
+        className="login-screen"
+        aria-busy="true"
+        aria-label="Loading"
+      />
+    );
   }
 
   if (session) {
@@ -234,6 +340,17 @@ export function AuthShell() {
             or enter credentials manually.
           </p>
 
+          {notice && (
+            <div
+              className="login-notice"
+              role="status"
+            >
+              {notice}
+            </div>
+          )}
+
+          {SHOW_DEMO_ACCOUNTS && (
+            <>
           <div className="demo-account-heading">
             Demo identity
           </div>
@@ -291,6 +408,8 @@ export function AuthShell() {
               )
             )}
           </div>
+            </>
+          )}
 
           {error && (
             <div

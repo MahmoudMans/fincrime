@@ -1,0 +1,528 @@
+[
+  {
+    "number": "01",
+    "id": "login",
+    "title": "Sign-in",
+    "file": "screenshots/01-login.png",
+    "alt": "FinCrime Graph sign-in screen with a choice of local demo identities",
+    "caption": "Sign-in with role-based demo identities.",
+    "description": "The entry point. Three demo identities (analyst, senior analyst and administrator) show how the same application changes with the role. Sessions use signed JWTs, and five failed attempts for one user name lock that name for five minutes.",
+    "talkingPoints": [
+      "Role-based access from the very first screen.",
+      "Sign-in lockout with a Retry-After wait shown to the user.",
+      "A guard refuses to start the production profile with demo secrets."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 2100,
+    "bytes": 1224477,
+    "capturedAt": "2026-10-09T17:30:36.520Z"
+  },
+  {
+    "number": "02",
+    "id": "overview",
+    "title": "Investigation overview",
+    "file": "screenshots/02-overview.png",
+    "alt": "Overview dashboard with alert, case and transaction summaries",
+    "caption": "What needs attention now, on one screen.",
+    "description": "The analyst's home page: new signals, unassigned cases and the state of the money-movement network. Each panel loads on its own, so a failing data source shows an inline message instead of blanking the page.",
+    "talkingPoints": [
+      "Panels load independently with Promise.allSettled.",
+      "The last good data is kept if a refresh fails.",
+      "The notification bell lists severe open alerts and unassigned cases."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 576528,
+    "capturedAt": "2026-10-09T17:30:39.580Z"
+  },
+  {
+    "number": "03",
+    "id": "alerts",
+    "title": "Alert queue",
+    "file": "screenshots/03-alerts.png",
+    "alt": "Alert queue with severity and status filters and a list of alerts",
+    "caption": "Every alert, searchable and filterable on the server.",
+    "description": "All alerts raised by the detection rules, with search, severity and status filters that show live counts, paging and a link to each alert. An analyst can open an investigation case straight from an alert.",
+    "talkingPoints": [
+      "Five detection typologies: circular flow, structuring, large cross-border, high-risk counterparty, velocity anomaly.",
+      "Search and filters run in the database; user text is always a bound parameter.",
+      "Saved filter views and CSV export."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 489493,
+    "capturedAt": "2026-10-09T17:30:41.592Z"
+  },
+  {
+    "number": "04",
+    "id": "transactions",
+    "title": "Transactions",
+    "file": "screenshots/04-transactions.png",
+    "alt": "Transactions list with search and filters",
+    "caption": "Recent transfers across all monitored accounts.",
+    "description": "A searchable, filterable list of the transfers that the detection rules and the graph work on.",
+    "talkingPoints": [
+      "Deep links to one transaction by reference.",
+      "Reachable from the command palette."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 529610,
+    "capturedAt": "2026-10-09T17:30:43.622Z"
+  },
+  {
+    "number": "05",
+    "id": "cases",
+    "title": "Investigation cases",
+    "file": "screenshots/05-cases.png",
+    "alt": "Investigation case queue with status and priority",
+    "caption": "The case queue, ordered by what matters.",
+    "description": "Every investigation case with its status, priority, owner and risk score. Cases are opened from alerts and worked end to end in the case workspace.",
+    "talkingPoints": [
+      "Case lifecycle: open, in review, closed.",
+      "Closing a case needs a disposition (no action, false positive, escalated or SAR recommended) and a written summary."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 542776,
+    "capturedAt": "2026-10-09T17:30:45.666Z"
+  },
+  {
+    "number": "06",
+    "id": "case-workspace",
+    "title": "Case workspace",
+    "file": "screenshots/06-case-workspace.png",
+    "alt": "Case workspace showing notes, evidence, assignment and timeline",
+    "caption": "Notes, evidence, owner and timeline for one case.",
+    "description": "Where the investigation happens. The analyst attaches alerts, transactions and circular-flow graph evidence, assigns or unassigns the case, and resolves it with a disposition. The investigation report, with evidence fingerprints, notes and the audit timeline, exports as a PDF.",
+    "talkingPoints": [
+      "Notes and audit entries are attributed from the JWT, not from the request.",
+      "Unassigning is idempotent and recorded on the timeline.",
+      "Free text travels in the request body, not the URL."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 2600,
+    "bytes": 791886,
+    "capturedAt": "2026-10-09T17:30:47.972Z"
+  },
+  {
+    "number": "07",
+    "id": "case-timeline",
+    "title": "Case notes and timeline",
+    "file": "screenshots/07-case-timeline.png",
+    "alt": "Analyst notes and the activity timeline of a case",
+    "caption": "Analyst notes and a day-by-day activity timeline.",
+    "description": "Notes are saved with Ctrl or Cmd + Enter and signed with the analyst's identity. Every action on the case lands on an activity timeline that is grouped by day, shown in UTC, and can be searched, filtered by event type and exported to CSV.",
+    "talkingPoints": [
+      "Every change to a case is a timeline event.",
+      "Search, filter chips and CSV export on the timeline.",
+      "Times are shown in UTC with the exact timestamp on hover."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 2600,
+    "bytes": 651624,
+    "capturedAt": "2026-10-09T17:30:50.240Z"
+  },
+  {
+    "number": "08",
+    "id": "triage",
+    "title": "Investigation triage",
+    "file": "screenshots/08-triage.png",
+    "alt": "Triage queue with scoring and ownership",
+    "caption": "A prioritised work queue with scores and owners.",
+    "description": "Open cases scored and ordered so the most urgent work comes first, with ownership and a recalculate action that records each run.",
+    "talkingPoints": [
+      "Each scoring run is stored, so the order can be explained later.",
+      "Ownership can be assigned from the queue."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 559790,
+    "capturedAt": "2026-10-09T17:30:52.268Z"
+  },
+  {
+    "number": "09",
+    "id": "network",
+    "title": "Network investigation",
+    "file": "screenshots/09-network.png",
+    "alt": "Interactive money-flow network graph",
+    "caption": "Money paths and circular flows on a Neo4j graph.",
+    "description": "The graph investigation workbench on Neo4j, here after pressing Find circular flows. Money that leaves an account and returns to it through intermediaries shows up as a loop. Analysts can also trace a path between two accounts and expand an account's neighbourhood.",
+    "talkingPoints": [
+      "TRANSFERRED_TO relationships rebuilt from PostgreSQL in one transaction.",
+      "Circular flows can be attached to a case as evidence.",
+      "Rendered with Cytoscape.js."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 2600,
+    "bytes": 917225,
+    "capturedAt": "2026-10-09T17:31:03.168Z"
+  },
+  {
+    "number": "10",
+    "id": "network-path",
+    "title": "Money path between two accounts",
+    "file": "screenshots/10-network-path.png",
+    "alt": "Graph showing the money path between two accounts",
+    "caption": "How money got from one account to another.",
+    "description": "Pick a source and a target account and a hop limit, and the workbench traces the directed path the money took through intermediary accounts.",
+    "talkingPoints": [
+      "A directed path query in Cypher, bounded by a maximum number of hops.",
+      "Each hop is a real transfer that can be opened and attached to a case."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 2600,
+    "bytes": 890123,
+    "capturedAt": "2026-10-09T17:31:13.954Z"
+  },
+  {
+    "number": "11",
+    "id": "entities",
+    "title": "Entities",
+    "file": "screenshots/11-entities.png",
+    "alt": "Customer and account explorer",
+    "caption": "Customer and account 360.",
+    "description": "Customers and accounts with their counterparties, flows and linked alerts, so an analyst sees who they are dealing with without leaving the platform.",
+    "talkingPoints": [
+      "Search that tolerates a failing API instead of throwing.",
+      "Pre-filled from the command palette."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 535788,
+    "capturedAt": "2026-10-09T17:31:15.980Z"
+  },
+  {
+    "number": "12",
+    "id": "customer-risk",
+    "title": "Customer risk assessment",
+    "file": "screenshots/12-customer-risk.png",
+    "alt": "Customer risk scores with contributing factors",
+    "caption": "Explainable customer risk scores.",
+    "description": "Each customer's risk score is built from six factors: customer profile, watchlist matches, transaction volume, cross-border activity, high-risk counterparties and circular flow. The factors are shown, so the number can be defended.",
+    "talkingPoints": [
+      "Explainability over a black-box score.",
+      "Assessments are kept as history."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 553604,
+    "capturedAt": "2026-10-09T17:31:18.019Z"
+  },
+  {
+    "number": "13",
+    "id": "watchlist",
+    "title": "Watchlist screening",
+    "file": "screenshots/13-watchlist.png",
+    "alt": "Watchlist screening results with potential matches",
+    "caption": "Fuzzy name screening against watchlists.",
+    "description": "Customers are screened against watchlist entries with Levenshtein similarity, aliases included, and a match threshold of 80. Potential matches are cleared or escalated by an analyst with a note.",
+    "talkingPoints": [
+      "Aliases are matched as well as primary names.",
+      "A review decision is recorded with a note."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 570590,
+    "capturedAt": "2026-10-09T17:31:20.070Z"
+  },
+  {
+    "number": "14",
+    "id": "compliance",
+    "title": "Compliance operations",
+    "file": "screenshots/14-compliance.png",
+    "alt": "Compliance command centre with SLA status",
+    "caption": "SLA clocks and the compliance command centre.",
+    "description": "Policy-driven SLA clocks for open cases, with breaches called out and a feed of recent activity, so a compliance lead sees where the process is slipping.",
+    "talkingPoints": [
+      "SLA status is recalculated on demand and recorded.",
+      "Senior analyst or administrator role required to recalculate."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 496251,
+    "capturedAt": "2026-10-09T17:31:22.090Z"
+  },
+  {
+    "number": "15",
+    "id": "custody",
+    "title": "Evidence chain of custody",
+    "file": "screenshots/15-custody.png",
+    "alt": "Evidence chain of custody log",
+    "caption": "A tamper-evident log for every item of evidence.",
+    "description": "Each piece of case evidence has a custody log. Integrity hashes (SHA-256) let anyone verify that the evidence is the same as when it was attached.",
+    "talkingPoints": [
+      "Hash verification instead of trust.",
+      "CSV export of custody records."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 528610,
+    "capturedAt": "2026-10-09T17:31:24.132Z"
+  },
+  {
+    "number": "16",
+    "id": "evidence-review",
+    "title": "Evidence review",
+    "file": "screenshots/16-evidence-review.png",
+    "alt": "Evidence review queue",
+    "caption": "Independent review before evidence counts.",
+    "description": "Attached evidence is reviewed before it can support a finding, and the reviewer must be someone other than the evidence's current custodian.",
+    "talkingPoints": [
+      "Four-eyes rule enforced by the service, not by convention.",
+      "Review decisions are part of the audit trail."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 534511,
+    "capturedAt": "2026-10-09T17:31:26.168Z"
+  },
+  {
+    "number": "17",
+    "id": "findings",
+    "title": "Investigation findings",
+    "file": "screenshots/17-findings.png",
+    "alt": "Investigation findings linked to evidence",
+    "caption": "Findings that point back to their evidence.",
+    "description": "Conclusions are recorded as findings, each tied to evidence that passed integrity verification and was accepted in review, so a decision can always be traced to what supports it. A finding is reviewed by someone other than its submitter.",
+    "talkingPoints": [
+      "A finding can only rest on integrity-verified, accepted evidence.",
+      "Feeds the decision step."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 485608,
+    "capturedAt": "2026-10-09T17:31:28.188Z"
+  },
+  {
+    "number": "18",
+    "id": "decisions",
+    "title": "Decision governance",
+    "file": "screenshots/18-decisions.png",
+    "alt": "Decision proposals awaiting approval",
+    "caption": "Maker-checker approval of case decisions.",
+    "description": "Decisions are proposed by one person and reviewed by another. The service rejects a review by the proposer.",
+    "talkingPoints": [
+      "Separation of duties enforced in a policy class with unit tests.",
+      "Every transition is recorded."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 487453,
+    "capturedAt": "2026-10-09T17:31:30.218Z"
+  },
+  {
+    "number": "19",
+    "id": "execution",
+    "title": "Controlled decision execution",
+    "file": "screenshots/19-execution.png",
+    "alt": "Decision execution ledger and outcomes",
+    "caption": "Approved decisions executed under role-gated controls.",
+    "description": "Only approved decisions can be executed, only by a senior analyst or administrator, and each execution and outcome is written to a ledger.",
+    "talkingPoints": [
+      "Role-gated with Spring method-level security.",
+      "Outcomes carry a provenance hash."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 452478,
+    "capturedAt": "2026-10-09T17:31:32.233Z"
+  },
+  {
+    "number": "20",
+    "id": "attestations",
+    "title": "Outcome attestations",
+    "file": "screenshots/20-attestations.png",
+    "alt": "Outcome attestations and verifications",
+    "caption": "Integrity attestations that seal a case outcome.",
+    "description": "The outcome of a case is sealed with an attestation. Later verification shows whether the recorded outcome still matches what was attested.",
+    "talkingPoints": [
+      "Seal and verify, with verification history.",
+      "Built on SHA-256 hashing."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 481102,
+    "capturedAt": "2026-10-09T17:31:34.254Z"
+  },
+  {
+    "number": "21",
+    "id": "release",
+    "title": "Conclusion release",
+    "file": "screenshots/21-release.png",
+    "alt": "Conclusion release governance",
+    "caption": "Controlled release of investigation conclusions.",
+    "description": "A conclusion leaves the investigation only through a controlled release. The reviewer must differ from whoever prepared the package, and a release fingerprint records exactly what was released.",
+    "talkingPoints": [
+      "Release fingerprint (SHA-256) of the released content.",
+      "Fourth four-eyes checkpoint, after evidence, findings and decisions."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 456789,
+    "capturedAt": "2026-10-09T17:31:36.270Z"
+  },
+  {
+    "number": "22",
+    "id": "rules",
+    "title": "Detection rule governance",
+    "file": "screenshots/22-rules.png",
+    "alt": "Detection rules with thresholds and change history",
+    "caption": "Tune detection rules with a full change history.",
+    "description": "Detection thresholds are not hard-coded. A senior analyst or administrator can change a rule with a written change summary, and every change is kept in the history.",
+    "talkingPoints": [
+      "Change summaries are sent in the request body, not the URL.",
+      "Role-gated: an analyst cannot retune a rule."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 536876,
+    "capturedAt": "2026-10-09T17:31:38.290Z"
+  },
+  {
+    "number": "23",
+    "id": "audit",
+    "title": "Security audit ledger",
+    "file": "screenshots/23-audit.png",
+    "alt": "Security audit ledger with events and hash chain status",
+    "caption": "A hash-chained record of security-relevant events.",
+    "description": "Administrators can search security events by date range and check the ledger's hash chain. Each entry is chained to the one before, so removing or editing history is detectable.",
+    "talkingPoints": [
+      "Server-side date-range search with a total count.",
+      "Refresh extends the chain; verification reports whether it is valid."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 504859,
+    "capturedAt": "2026-10-09T17:31:40.351Z"
+  },
+  {
+    "number": "24",
+    "id": "ingestion",
+    "title": "Data ingestion",
+    "file": "screenshots/24-ingestion.png",
+    "alt": "Data ingestion centre with dataset validation and import jobs",
+    "caption": "Validate and import customer, account and transaction data.",
+    "description": "Upload CSV or JSON datasets, preview and validate them against a schema, import them and re-synchronise the graph. Each import is hashed and logged.",
+    "talkingPoints": [
+      "Preview before import.",
+      "Import jobs keep a log.",
+      "The graph is re-synchronised from PostgreSQL afterwards."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 539546,
+    "capturedAt": "2026-10-09T17:31:42.397Z"
+  },
+  {
+    "number": "25",
+    "id": "command-palette",
+    "title": "Command palette",
+    "file": "screenshots/25-command-palette.png",
+    "alt": "Command palette searching modules, alerts, cases and transactions",
+    "caption": "Jump anywhere, or search alerts, cases and transactions.",
+    "description": "Press Ctrl or Cmd + K (or the slash key) from any screen to jump to a module or search alerts, cases and transactions by code, reference, account or name.",
+    "talkingPoints": [
+      "Proper combobox and listbox semantics, fully keyboard driven.",
+      "Every result is a deep link."
+    ],
+    "device": "desktop",
+    "width": 2880,
+    "height": 1800,
+    "bytes": 605360,
+    "capturedAt": "2026-10-09T17:31:44.987Z"
+  },
+  {
+    "number": "26",
+    "id": "mobile-login",
+    "title": "Sign-in on a phone",
+    "file": "screenshots/26-mobile-login.png",
+    "alt": "Sign-in screen on a phone",
+    "caption": "The sign-in screen on a phone.",
+    "description": "The same sign-in, laid out for a narrow screen.",
+    "talkingPoints": [
+      "Same form, same demo identities, laid out for a narrow screen."
+    ],
+    "device": "phone",
+    "width": 1170,
+    "height": 2532,
+    "bytes": 303433,
+    "capturedAt": "2026-10-09T17:31:46.045Z"
+  },
+  {
+    "number": "27",
+    "id": "mobile-overview",
+    "title": "Overview on a phone",
+    "file": "screenshots/27-mobile-overview.png",
+    "alt": "Overview dashboard on a phone",
+    "caption": "The overview on a phone.",
+    "description": "Panels stack into a single column and the sidebar becomes an off-canvas menu.",
+    "talkingPoints": [
+      "Breakpoints at 1180, 1024, 850, 780 and 480 px.",
+      "Comfortable touch targets."
+    ],
+    "device": "phone",
+    "width": 1170,
+    "height": 2532,
+    "bytes": 339664,
+    "capturedAt": "2026-10-09T17:31:48.841Z"
+  },
+  {
+    "number": "28",
+    "id": "mobile-menu",
+    "title": "Navigation menu on a phone",
+    "file": "screenshots/28-mobile-menu.png",
+    "alt": "Off-canvas navigation menu on a phone",
+    "caption": "The grouped navigation as an off-canvas menu.",
+    "description": "On screens up to 850 px the sidebar turns into a drawer with the same five groups, instead of an icon rail without labels.",
+    "talkingPoints": [
+      "Focus is managed when the drawer opens and closes."
+    ],
+    "device": "phone",
+    "width": 1170,
+    "height": 2532,
+    "bytes": 371020,
+    "capturedAt": "2026-10-09T17:31:50.930Z"
+  },
+  {
+    "number": "29",
+    "id": "mobile-alerts",
+    "title": "Alerts on a phone",
+    "file": "screenshots/29-mobile-alerts.png",
+    "alt": "Alert queue on a phone",
+    "caption": "The alert queue on a phone.",
+    "description": "Filters and the alert list reflow for one-handed use.",
+    "talkingPoints": [
+      "Same server-side search and filters as on the desktop."
+    ],
+    "device": "phone",
+    "width": 1170,
+    "height": 2532,
+    "bytes": 241300,
+    "capturedAt": "2026-10-09T17:31:52.932Z"
+  }
+]

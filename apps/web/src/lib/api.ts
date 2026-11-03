@@ -3,10 +3,63 @@ const API_BASE_URL =
 
 let apiAccessToken: string | null = null;
 
+let unauthorizedHandler: (() => void) | null = null;
+
 export function setApiAccessToken(
   token: string | null
 ) {
   apiAccessToken = token;
+}
+
+/**
+ * Called once whenever an authenticated request comes back 401, i.e.
+ * the access token expired or was revoked. The app uses it to return
+ * to the sign-in screen instead of leaving every panel on an error.
+ */
+export function setUnauthorizedHandler(
+  handler: (() => void) | null
+) {
+  unauthorizedHandler = handler;
+}
+
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+async function describeFailure(
+  response: Response
+): Promise<string> {
+  try {
+    const body: unknown = await response.json();
+
+    if (
+      typeof body === "object" &&
+      body !== null &&
+      "message" in body &&
+      typeof body.message === "string" &&
+      body.message.trim()
+    ) {
+      return body.message;
+    }
+  } catch {
+    // The body was empty or not JSON; fall through to a status message.
+  }
+
+  if (response.status === 403) {
+    return "You do not have permission to do this.";
+  }
+
+  if (response.status === 401) {
+    return "Your session has expired. Please sign in again.";
+  }
+
+  return `API request failed: ${response.status} ${response.statusText}`.trim();
 }
 
 export interface DashboardSummary {
@@ -122,8 +175,13 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    throw new Error(
-      `API request failed: ${response.status} ${response.statusText}`
+    if (response.status === 401 && apiAccessToken) {
+      unauthorizedHandler?.();
+    }
+
+    throw new ApiError(
+      await describeFailure(response),
+      response.status
     );
   }
 
@@ -201,6 +259,44 @@ export function advanceCase(
     `/api/v1/cases/${caseId}/advance`,
     {
       method: "POST",
+    }
+  );
+}
+
+export type AlertQueueItem = AlertView;
+
+export interface AlertQueuePage {
+  items: AlertQueueItem[];
+  page: number;
+  size: number;
+  totalItems: number;
+  totalPages: number;
+  severityCounts: Record<string, number>;
+  statusCounts: Record<string, number>;
+}
+
+export interface AlertQueueQuery {
+  status?: string;
+  severity?: string;
+  q?: string;
+  page?: number;
+  size?: number;
+}
+
+export function fetchAlertQueue(
+  query: AlertQueueQuery,
+  signal?: AbortSignal
+): Promise<AlertQueuePage> {
+  return request<AlertQueuePage>(
+    `/api/v1/alerts${buildQuery({
+      status: query.status,
+      severity: query.severity,
+      q: query.q,
+      page: query.page,
+      size: query.size,
+    })}`,
+    {
+      signal,
     }
   );
 }

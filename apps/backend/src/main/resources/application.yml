@@ -37,7 +37,11 @@ management:
           - info
   endpoint:
     health:
-      show-details: always
+      # /actuator/health is public so load balancers can probe it.
+      # Component details (database, Neo4j, disk) are only returned
+      # to authenticated callers.
+      show-details: when-authorized
+      show-components: when-authorized
 
 app:
   cors:

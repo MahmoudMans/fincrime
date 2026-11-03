@@ -14,10 +14,15 @@ import {
   useState,
 } from "react";
 
-import type {
-  GraphNetwork,
-  GraphNode,
-} from "@/lib/api";
+import { EmptyState } from "@/components/state-card";
+import type { GraphNetwork } from "@/lib/api";
+import {
+  layoutKey,
+  modelNodes,
+  networkModel,
+  type GraphModel,
+} from "@/lib/gx-graph";
+import { plural } from "@/lib/list-utils";
 
 interface GraphExplorerProps {
   network: GraphNetwork;
@@ -28,38 +33,59 @@ export function GraphExplorer({
 }: GraphExplorerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cytoscapeRef = useRef<cytoscape.Core | null>(null);
+  /** The shape the current layout was computed for. */
+  const laidOutRef = useRef<string | null>(null);
 
-  const [selectedNode, setSelectedNode] =
-    useState<GraphNode | null>(null);
+  const [selectedId, setSelectedId] =
+    useState<string | null>(null);
 
-  const elements = useMemo(
-    () => [
-      ...network.nodes.map((node) => ({
-        data: {
-          ...node,
-        },
-      })),
-      ...network.edges.map((edge) => ({
-        data: {
-          ...edge,
-          amountLabel:
-            edge.kind === "TRANSFER" && edge.amount !== null
-              ? `${edge.amount.toLocaleString()} ${edge.currency ?? ""}`
-              : "",
-        },
-      })),
-    ],
+  // The dashboard refreshes in the background and hands over a new
+  // network object every time. The graph is compared by content, so
+  // an unchanged network keeps the same instance, layout, zoom and
+  // selection.
+  const modelJson = useMemo(
+    () => JSON.stringify(networkModel(network)),
     [network]
   );
 
+  const model = useMemo(
+    () => JSON.parse(modelJson) as GraphModel,
+    [modelJson]
+  );
+
+  const elements = model.elements;
+
+  const shapeKey = useMemo(
+    () => layoutKey(model),
+    [model]
+  );
+
+  const nodes = useMemo(
+    () => modelNodes(network),
+    [network]
+  );
+
+  const hasGraph = model.nodeCount > 0;
+
+  const selectedNode =
+    nodes.find((node) => node.id === selectedId) ??
+    null;
+
+  const highRiskCount = nodes.filter(
+    (node) => node.risk === "HIGH"
+  ).length;
+
+  // Created once while there is something to draw, destroyed on
+  // unmount (or when the network becomes empty).
   useEffect(() => {
-    if (!containerRef.current) {
+    const container = containerRef.current;
+
+    if (!hasGraph || !container) {
       return;
     }
 
     const cy = cytoscape({
-      container: containerRef.current,
-      elements,
+      container,
       minZoom: 0.35,
       maxZoom: 2.5,
       wheelSensitivity: 0.2,
@@ -154,34 +180,65 @@ export function GraphExplorer({
           },
         },
       ],
-      layout: {
-        name: "cose",
-        animate: false,
-        fit: true,
-        padding: 50,
-        idealEdgeLength: 105,
-        nodeRepulsion: 7000,
-      },
     });
 
     cytoscapeRef.current = cy;
 
-    cy.on("tap", "node", (event) => {
-      const data = event.target.data() as GraphNode;
-      setSelectedNode(data);
+    cy.on("tap", "node", (event: cytoscape.EventObject) => {
+      setSelectedId(String(event.target.id()));
     });
 
-    cy.on("tap", (event) => {
+    cy.on("tap", (event: cytoscape.EventObject) => {
       if (event.target === cy) {
-        setSelectedNode(null);
+        setSelectedId(null);
       }
     });
 
     return () => {
       cy.destroy();
       cytoscapeRef.current = null;
+      laidOutRef.current = null;
     };
-  }, [elements]);
+  }, [hasGraph]);
+
+  // New and changed entities are applied in place; only a different
+  // set of nodes and edges gets a fresh layout.
+  useEffect(() => {
+    const cy = cytoscapeRef.current;
+
+    if (!cy) {
+      return;
+    }
+
+    cy.json({ elements });
+
+    if (laidOutRef.current !== shapeKey) {
+      laidOutRef.current = shapeKey;
+
+      cy.layout({
+        name: "cose",
+        animate: false,
+        fit: true,
+        padding: 50,
+        idealEdgeLength: 105,
+        nodeRepulsion: 7000,
+      }).run();
+    }
+  }, [elements, shapeKey, hasGraph]);
+
+  useEffect(() => {
+    const cy = cytoscapeRef.current;
+
+    if (!cy) {
+      return;
+    }
+
+    cy.elements().unselect();
+
+    if (selectedId) {
+      cy.getElementById(selectedId).select();
+    }
+  }, [selectedId, elements, hasGraph]);
 
   function fitGraph() {
     cytoscapeRef.current?.fit(undefined, 45);
@@ -194,9 +251,13 @@ export function GraphExplorer({
       return;
     }
 
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
     cy.layout({
       name: "cose",
-      animate: true,
+      animate: !reduceMotion,
       animationDuration: 450,
       fit: true,
       padding: 50,
@@ -219,6 +280,17 @@ export function GraphExplorer({
     }
   }
 
+  /** Keyboard route to a node: select it, show it and centre the canvas on it. */
+  function chooseNode(id: string) {
+    setSelectedId(id === "" ? null : id);
+
+    const cy = cytoscapeRef.current;
+
+    if (cy && id !== "") {
+      cy.center(cy.getElementById(id));
+    }
+  }
+
   return (
     <section className="panel graph-panel">
       <div className="panel-heading graph-heading">
@@ -233,101 +305,180 @@ export function GraphExplorer({
           </p>
         </div>
 
-        <div className="graph-actions">
+        <div
+          className="graph-actions"
+          role="group"
+          aria-label="Graph view controls"
+        >
           <button
             className="icon-button"
             type="button"
             onClick={focusHighRisk}
-            title="Focus high-risk nodes"
+            disabled={!hasGraph || highRiskCount === 0}
+            aria-label="Focus high-risk nodes"
+            title={
+              highRiskCount === 0
+                ? "No high-risk nodes in this graph"
+                : "Focus high-risk nodes"
+            }
           >
-            <Focus size={17} />
+            <Focus size={17} aria-hidden="true" />
           </button>
 
           <button
             className="icon-button"
             type="button"
             onClick={resetLayout}
+            disabled={!hasGraph}
+            aria-label="Reset layout"
             title="Reset layout"
           >
-            <RotateCcw size={17} />
+            <RotateCcw size={17} aria-hidden="true" />
           </button>
 
           <button
             className="icon-button"
             type="button"
             onClick={fitGraph}
+            disabled={!hasGraph}
+            aria-label="Fit graph to view"
             title="Fit graph"
           >
-            <Maximize2 size={17} />
+            <Maximize2 size={17} aria-hidden="true" />
           </button>
         </div>
       </div>
 
       <div className="graph-stats">
         <span>
-          <Network size={14} />
-          {network.nodes.length} nodes
+          <Network size={14} aria-hidden="true" />
+          {model.nodeCount}{" "}
+          {plural(model.nodeCount, "node")}
         </span>
-        <span>{network.edges.length} relationships</span>
-      </div>
-
-      <div className="graph-layout">
-        <div
-          ref={containerRef}
-          className="graph-canvas"
-          aria-label="Financial investigation network"
-        />
-
-        <aside className={selectedNode ? "graph-inspector" : "graph-inspector graph-inspector-collapsed"}>
-          {selectedNode ? (
-            <>
-              <div className="eyebrow">Selected entity</div>
-
-              <div className="entity-kind">
-                {selectedNode.kind}
-              </div>
-
-              <h3>{selectedNode.label}</h3>
-
-              <p>{selectedNode.subtitle}</p>
-
-              <div className="inspector-row">
-                <span>Risk tier</span>
-                <strong
-                  className={`risk-text risk-${selectedNode.risk.toLowerCase()}`}
-                >
-                  {selectedNode.risk}
-                </strong>
-              </div>
-
-              <div className="inspector-row">
-                <span>Graph ID</span>
-                <strong className="mono truncate">
-                  {selectedNode.id}
-                </strong>
-              </div>
-            </>
-          ) : (
-            <div className="inspector-empty">
-              <Network size={26} />
-              <strong>Select a node</strong>
-              <span>
-                Click a customer or account to inspect it.
-              </span>
-            </div>
+        <span>
+          {model.edgeCount}{" "}
+          {plural(
+            model.edgeCount,
+            "relationship"
           )}
-        </aside>
+        </span>
+
+        {model.skipped > 0 && (
+          <span
+            title="Duplicate entries and relationships that point at missing entities are not drawn."
+          >
+            {model.skipped}{" "}
+            {plural(model.skipped, "entry", "entries")}{" "}
+            not drawn
+          </span>
+        )}
+
+        {hasGraph && (
+          <label className="ui-gx-picker">
+            <span className="ui-visually-hidden">
+              Inspect an entity
+            </span>
+
+            <select
+              className="ui-select"
+              value={selectedNode?.id ?? ""}
+              onChange={(event) =>
+                chooseNode(event.target.value)
+              }
+            >
+              <option value="">
+                Inspect an entity...
+              </option>
+
+              {nodes.map((node) => (
+                <option key={node.id} value={node.id}>
+                  {node.label}
+                  {" · "}
+                  {node.kind === "CUSTOMER"
+                    ? "Customer"
+                    : "Account"}
+                  {" · "}
+                  {node.risk} risk
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
+
+      {hasGraph ? (
+        <div className="graph-layout">
+          <div
+            ref={containerRef}
+            className="graph-canvas"
+            role="img"
+            aria-label={`Financial investigation network with ${model.nodeCount} ${plural(model.nodeCount, "node")} and ${model.edgeCount} ${plural(model.edgeCount, "relationship")}. Use the Inspect an entity list to read about a node without the mouse.`}
+          />
+
+          <aside
+            className={selectedNode ? "graph-inspector" : "graph-inspector graph-inspector-collapsed"}
+            aria-live="polite"
+            aria-label="Selected entity"
+          >
+            {selectedNode ? (
+              <>
+                <div className="eyebrow">Selected entity</div>
+
+                <div className="entity-kind">
+                  {selectedNode.kind}
+                </div>
+
+                <h3>{selectedNode.label}</h3>
+
+                <p>{selectedNode.subtitle}</p>
+
+                <div className="inspector-row">
+                  <span>Risk tier</span>
+                  <strong
+                    className={`risk-text risk-${selectedNode.risk.toLowerCase()}`}
+                  >
+                    {selectedNode.risk}
+                  </strong>
+                </div>
+
+                <div className="inspector-row">
+                  <span>Graph ID</span>
+                  <strong className="mono truncate">
+                    {selectedNode.id}
+                  </strong>
+                </div>
+              </>
+            ) : (
+              <div className="inspector-empty">
+                <Network size={26} aria-hidden="true" />
+                <strong>Select a node</strong>
+                <span>
+                  Click a customer or account to inspect it,
+                  or pick one from the list above.
+                </span>
+              </div>
+            )}
+          </aside>
+        </div>
+      ) : (
+        <EmptyState
+          icon={
+            <Network size={24} aria-hidden="true" />
+          }
+          title="The network graph is empty"
+          message="There are no customers or accounts to draw yet. Ingest data or run detection, then refresh the dashboard."
+        />
+      )}
 
       <div className="graph-legend">
         <span>
           <i className="legend-dot customer-dot" />
-          Customer
+          Customer (diamond)
         </span>
 
         <span>
           <i className="legend-dot account-dot" />
-          Account
+          Account (circle)
         </span>
 
         <span>
@@ -339,6 +490,10 @@ export function GraphExplorer({
           <i className="legend-line ownership-line" />
           Ownership
         </span>
+
+        <span>Red outline: high risk</span>
+
+        <span>Amber outline: medium risk</span>
       </div>
     </section>
   );

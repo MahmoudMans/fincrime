@@ -12,13 +12,13 @@ import {
 } from "lucide-react";
 
 import {
-  useEffect,
   useMemo,
   useState,
 } from "react";
 
 import {
   assignInvestigationQueueOwner,
+  fetchCases,
   fetchInvestigationTriageQueue,
   fetchInvestigationTriageRuns,
   recalculateInvestigationTriage,
@@ -27,12 +27,65 @@ import {
 } from "@/lib/api";
 
 import {
+  exportRowsAsCsv,
+} from "@/lib/csv";
+
+import {
+  formatDateTime,
+  formatRelativeTime,
+  humanize,
+} from "@/lib/format";
+
+import {
+  clampPage,
+  paginate,
+  plural,
+} from "@/lib/list-utils";
+
+import {
+  useLoad,
+} from "@/lib/use-load";
+
+import {
+  useIsMounted,
+} from "@/lib/wf-common";
+
+import {
+  DEFAULT_TRIAGE_FILTERS,
+  filterTriage,
+  sortTriage,
+  triageAge,
+  triageCsvColumns,
+  type TriageFilters,
+} from "@/lib/wf-triage";
+
+import {
   useAuth,
 } from "./auth-context";
 
-interface QueueState {
-  items: InvestigationTriageQueueItem[];
+import {
+  Pager,
+} from "./list-tools";
+
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "./state-card";
+
+import {
+  TriageTools,
+} from "./wf-triage-tools";
+
+interface TriageData {
+  queue: InvestigationTriageQueueItem[];
+  /** Null when the run history could not be loaded. */
+  runs: InvestigationTriageRunSummary[] | null;
 }
+
+const PAGE_SIZE = 15;
+
+const EMPTY_QUEUE: InvestigationTriageQueueItem[] = [];
 
 const DEMO_OWNERS = [
   "analyst@fincrime.local",
@@ -40,10 +93,38 @@ const DEMO_OWNERS = [
   "admin@fincrime.local",
 ];
 
+async function loadTriage(
+  signal: AbortSignal
+): Promise<TriageData> {
+  const [queue, runs] =
+    await Promise.all([
+      fetchInvestigationTriageQueue(
+        signal
+      ),
+
+      // The history is a footnote; the queue still works without it.
+      fetchInvestigationTriageRuns(
+        signal
+      ).catch(() => null),
+    ]);
+
+  return {
+    queue,
+    runs,
+  };
+}
+
 export function InvestigationTriage() {
   const {
     hasAnyRole,
+    session,
   } = useAuth();
+
+  const username =
+    session.username;
+
+  const isMounted =
+    useIsMounted();
 
   const canManage =
     hasAnyRole(
@@ -51,18 +132,26 @@ export function InvestigationTriage() {
       "ADMIN"
     );
 
-  const [
-    queueState,
-    setQueueState,
-  ] =
-    useState<QueueState>({
-      items: [],
-    });
+  const load =
+    useLoad(
+      loadTriage,
+      "Unable to load investigation triage."
+    );
 
-  const [runs, setRuns] =
-    useState<
-      InvestigationTriageRunSummary[]
-    >([]);
+  // Case creation times, to show how old each case is. Optional: the
+  // queue works (and shows the snapshot age) when this fails.
+  const casesLoad =
+    useLoad(
+      fetchCases
+    );
+
+  const [filters, setFilters] =
+    useState<TriageFilters>(
+      DEFAULT_TRIAGE_FILTERS
+    );
+
+  const [page, setPage] =
+    useState(0);
 
   const [
     selectedCaseId,
@@ -87,90 +176,119 @@ export function InvestigationTriage() {
       null
     );
 
-  const [error, setError] =
+  const [
+    actionFailure,
+    setActionFailure,
+  ] =
     useState<string | null>(
       null
     );
 
-  useEffect(() => {
-    const controller =
-      new AbortController();
-
-    void Promise.all([
-      fetchInvestigationTriageQueue(
-        controller.signal
-      ),
-      fetchInvestigationTriageRuns(
-        controller.signal
-      ),
-    ])
-      .then(
-        ([
-          queue,
-          history,
-        ]) => {
-          setQueueState({
-            items: queue,
-          });
-
-          setRuns(
-            history
-          );
-
-          setError(
-            null
-          );
-        }
-      )
-      .catch(
-        (loadError: unknown) => {
-          if (
-            loadError instanceof DOMException &&
-            loadError.name ===
-              "AbortError"
-          ) {
-            return;
-          }
-
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Unable to load investigation triage."
-          );
-        }
-      );
-
-    return () =>
-      controller.abort();
-  }, []);
+  const [notice, setNotice] =
+    useState<string | null>(
+      null
+    );
 
   const queue =
-    queueState.items;
+    load.data?.queue ??
+    EMPTY_QUEUE;
+
+  const runs =
+    load.data?.runs ??
+    null;
+
+  const busy =
+    action !== null ||
+    load.loading;
+
+  const openedAt =
+    useMemo(
+      () => {
+        const map =
+          new Map<
+            string,
+            string
+          >();
+
+        for (const item of casesLoad.data ?? []) {
+          map.set(
+            item.id,
+            item.createdAt
+          );
+        }
+
+        return map;
+      },
+      [
+        casesLoad.data,
+      ]
+    );
+
+  const filtered =
+    useMemo(
+      () =>
+        sortTriage(
+          filterTriage(
+            queue,
+            filters,
+            username
+          ),
+          filters.sort,
+          openedAt
+        ),
+      [
+        queue,
+        filters,
+        username,
+        openedAt,
+      ]
+    );
+
+  const safePage =
+    clampPage(
+      page,
+      filtered.length,
+      PAGE_SIZE
+    );
+
+  const pageItems =
+    paginate(
+      filtered,
+      safePage,
+      PAGE_SIZE
+    );
 
   const activeCaseId =
     selectedCaseId &&
-    queue.some(
+    filtered.some(
       (item) =>
         item.caseId ===
         selectedCaseId
     )
       ? selectedCaseId
-      : queue[0]?.caseId ??
+      : filtered[0]?.caseId ??
         null;
 
   const selected =
     useMemo(
       () =>
-        queue.find(
+        filtered.find(
           (item) =>
             item.caseId ===
             activeCaseId
         ) ?? null,
       [
-        queue,
+        filtered,
         activeCaseId,
       ]
     );
+
+  const selectedOpened =
+    selected
+      ? openedAt.get(
+          selected.caseId
+        ) ?? null
+      : null;
 
   const counts =
     useMemo(
@@ -216,8 +334,63 @@ export function InvestigationTriage() {
       ]
     );
 
+  const lastRun =
+    useMemo(
+      () =>
+        (runs ?? []).reduce<
+          InvestigationTriageRunSummary | null
+        >(
+          (latest, run) =>
+            latest === null ||
+            run.calculatedAt >
+              latest.calculatedAt
+              ? run
+              : latest,
+          null
+        ),
+      [
+        runs,
+      ]
+    );
+
+  const ownerChoices =
+    DEMO_OWNERS.includes(
+      username
+    )
+      ? DEMO_OWNERS
+      : [
+          ...DEMO_OWNERS,
+          username,
+        ];
+
+  function update(
+    patch: Partial<TriageFilters>
+  ) {
+    setFilters(
+      (current) => ({
+        ...current,
+        ...patch,
+      })
+    );
+
+    setPage(0);
+  }
+
+  function apply(
+    next: TriageFilters
+  ) {
+    setFilters(
+      next
+    );
+
+    setPage(0);
+  }
+
   async function recalculate() {
-    if (!canManage) {
+    if (
+      !canManage ||
+      busy
+    ) {
       return;
     }
 
@@ -226,86 +399,120 @@ export function InvestigationTriage() {
         "recalculate"
       );
 
-      setError(
+      setActionFailure(
+        null
+      );
+
+      setNotice(
         null
       );
 
       const run =
         await recalculateInvestigationTriage();
 
-      setQueueState({
-        items: run.queue,
-      });
-
-      const history =
-        await fetchInvestigationTriageRuns();
-
-      setRuns(
-        history
-      );
+      if (!isMounted()) {
+        return;
+      }
 
       setSelectedCaseId(
-        run.queue[0]
-          ?.caseId ??
         null
       );
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
+
+      setPage(0);
+
+      setNotice(
+        `Queue recalculated: ${run.caseCount} ${plural(
+          run.caseCount,
+          "case"
+        )} scored.`
+      );
+
+      load.reload();
+    } catch (failure) {
+      if (!isMounted()) {
+        return;
+      }
+
+      setActionFailure(
+        failure instanceof Error
+          ? failure.message
           : "Unable to recalculate investigation triage."
       );
     } finally {
-      setAction(
-        null
-      );
+      if (isMounted()) {
+        setAction(
+          null
+        );
+      }
     }
   }
 
   async function assignOwner() {
     if (
       !canManage ||
-      !selected
+      !selected ||
+      busy
     ) {
       return;
     }
+
+    const caseNumber =
+      selected.caseNumber;
 
     try {
       setAction(
         "assign"
       );
 
-      setError(
+      setActionFailure(
+        null
+      );
+
+      setNotice(
         null
       );
 
       await assignInvestigationQueueOwner(
         selected.caseId,
         owner,
-        note
+        note.trim()
       );
 
-      const updated =
-        await fetchInvestigationTriageQueue();
+      if (!isMounted()) {
+        return;
+      }
 
-      setQueueState({
-        items: updated,
-      });
-    } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
+      setNotice(
+        `${caseNumber} assigned to ${owner}.`
+      );
+
+      load.reload();
+    } catch (failure) {
+      if (!isMounted()) {
+        return;
+      }
+
+      setActionFailure(
+        failure instanceof Error
+          ? failure.message
           : "Unable to assign investigation owner."
       );
     } finally {
-      setAction(
-        null
-      );
+      if (isMounted()) {
+        setAction(
+          null
+        );
+      }
     }
   }
 
   return (
-    <section className="panel triage-panel">
+    <section
+      className="panel triage-panel"
+      aria-busy={
+        load.loading
+      }
+    >
       <div className="panel-heading triage-heading">
         <div>
           <div className="eyebrow">
@@ -330,7 +537,7 @@ export function InvestigationTriage() {
           className="primary-button"
           disabled={
             !canManage ||
-            action !== null
+            busy
           }
           title={
             canManage
@@ -352,79 +559,194 @@ export function InvestigationTriage() {
         </button>
       </div>
 
-      {error && (
-        <div className="triage-error">
+      {actionFailure && (
+        <div
+          className="triage-error"
+          role="alert"
+        >
           <AlertTriangle
             size={14}
           />
 
-          {error}
+          {actionFailure}
         </div>
       )}
 
-      <div className="triage-metrics">
-        <Metric
-          label="Cases"
-          value={
-            queue.length
-          }
-          icon={
-            <Activity
-              size={15}
-            />
-          }
-        />
+      {notice && (
+        <div
+          className="ui-notice ui-wf-ok"
+          role="status"
+        >
+          <CheckCircle2
+            size={15}
+            aria-hidden="true"
+          />
 
-        <Metric
-          label="Urgent"
-          value={
-            counts.urgent
-          }
-          icon={
-            <ShieldAlert
-              size={15}
-            />
-          }
-        />
+          <span>
+            {notice}
+          </span>
+        </div>
+      )}
 
-        <Metric
-          label="High"
-          value={
-            counts.high
-          }
-          icon={
-            <Gauge
-              size={15}
-            />
-          }
-        />
+      {load.error &&
+        !load.data && (
+          <ErrorState
+            title="Unable to load investigation triage"
+            message={
+              load.error
+            }
+            onRetry={
+              load.reload
+            }
+          />
+        )}
 
-        <Metric
-          label="Medium"
-          value={
-            counts.medium
-          }
-          icon={
-            <Clock3
-              size={15}
-            />
-          }
-        />
+      {load.error &&
+        load.data && (
+          <ErrorState
+            compact
+            title="Could not refresh the triage queue"
+            message={
+              load.error
+            }
+            onRetry={
+              load.reload
+            }
+          />
+        )}
 
-        <Metric
-          label="Owned"
-          value={
-            counts.owned
-          }
-          icon={
-            <UserRoundCheck
-              size={15}
-            />
-          }
-        />
-      </div>
+      {!load.error &&
+        !load.data && (
+          <LoadingState label="Loading triage queue" />
+        )}
 
-      {queue.length === 0 ? (
+      {load.data && (
+        <div className="triage-metrics">
+          <Metric
+            label="Cases"
+            value={
+              queue.length
+            }
+            icon={
+              <Activity
+                size={15}
+              />
+            }
+          />
+
+          <Metric
+            label="Urgent"
+            value={
+              counts.urgent
+            }
+            icon={
+              <ShieldAlert
+                size={15}
+              />
+            }
+          />
+
+          <Metric
+            label="High"
+            value={
+              counts.high
+            }
+            icon={
+              <Gauge
+                size={15}
+              />
+            }
+          />
+
+          <Metric
+            label="Medium"
+            value={
+              counts.medium
+            }
+            icon={
+              <Clock3
+                size={15}
+              />
+            }
+          />
+
+          <Metric
+            label="Owned"
+            value={
+              counts.owned
+            }
+            icon={
+              <UserRoundCheck
+                size={15}
+              />
+            }
+          />
+        </div>
+      )}
+
+      {load.data &&
+        queue.length > 0 && (
+          <TriageTools
+            queue={
+              queue
+            }
+            filters={
+              filters
+            }
+            username={
+              username
+            }
+            hasCaseAges={
+              openedAt.size >
+              0
+            }
+            shown={
+              filtered.length
+            }
+            loading={
+              load.loading
+            }
+            note={
+              lastRun && (
+                <span
+                  className="ui-wf-muted"
+                  title={`Calculated ${formatDateTime(
+                    lastRun.calculatedAt
+                  )} UTC`}
+                >
+                  Last calculated{" "}
+                  {formatRelativeTime(
+                    lastRun.calculatedAt
+                  )}
+                  {" by "}
+                  {shortUser(
+                    lastRun.calculatedBy
+                  )}
+                </span>
+              )
+            }
+            onChange={
+              update
+            }
+            onApply={
+              apply
+            }
+            onReload={
+              load.reload
+            }
+            onExport={() =>
+              exportRowsAsCsv(
+                "Investigation triage",
+                filtered,
+                triageCsvColumns(
+                  openedAt
+                )
+              )
+            }
+          />
+        )}
+
+      {!load.data ? null : queue.length === 0 ? (
         <div className="triage-empty">
           <Gauge
             size={27}
@@ -442,8 +764,36 @@ export function InvestigationTriage() {
         </div>
       ) : (
         <div className="triage-layout">
-          <div className="triage-list">
-            {queue.map(
+          <div
+            className={
+              load.loading
+                ? "triage-list ui-list-loading"
+                : "triage-list"
+            }
+          >
+            {filtered.length ===
+              0 && (
+              <EmptyState
+                compact
+                title="No cases match these filters"
+                message="Try a different search or clear the filters."
+                action={
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() =>
+                      apply(
+                        DEFAULT_TRIAGE_FILTERS
+                      )
+                    }
+                  >
+                    Reset filters
+                  </button>
+                }
+              />
+            )}
+
+            {pageItems.map(
               (item) => (
                 <button
                   key={
@@ -455,6 +805,12 @@ export function InvestigationTriage() {
                     activeCaseId
                       ? "triage-row selected"
                       : "triage-row"
+                  }
+                  aria-current={
+                    item.caseId ===
+                    activeCaseId
+                      ? "true"
+                      : undefined
                   }
                   onClick={() =>
                     setSelectedCaseId(
@@ -487,6 +843,23 @@ export function InvestigationTriage() {
                         item.caseStatus
                       )}
                     </span>
+
+                    <span
+                      className="ui-wf-age"
+                      title={
+                        triageAge(
+                          item,
+                          openedAt
+                        ).title
+                      }
+                    >
+                      {
+                        triageAge(
+                          item,
+                          openedAt
+                        ).label
+                      }
+                    </span>
                   </div>
 
                   <div className="triage-row-meta">
@@ -507,6 +880,22 @@ export function InvestigationTriage() {
                 </button>
               )
             )}
+
+            <Pager
+              label="Triage queue pages"
+              page={
+                safePage
+              }
+              pageSize={
+                PAGE_SIZE
+              }
+              total={
+                filtered.length
+              }
+              onPage={
+                setPage
+              }
+            />
           </div>
 
           <div className="triage-detail">
@@ -536,7 +925,26 @@ export function InvestigationTriage() {
                       {formatDateTime(
                         selected.calculatedAt
                       )}
+                      {" UTC ("}
+                      {formatRelativeTime(
+                        selected.calculatedAt
+                      )}
+                      {")"}
                     </p>
+
+                    {selectedOpened && (
+                      <p>
+                        {"Case opened "}
+                        {formatDateTime(
+                          selectedOpened
+                        )}
+                        {" UTC ("}
+                        {formatRelativeTime(
+                          selectedOpened
+                        )}
+                        {")"}
+                      </p>
+                    )}
                   </div>
 
                   <Score
@@ -622,7 +1030,7 @@ export function InvestigationTriage() {
                         }
                         disabled={
                           !canManage ||
-                          action !== null
+                          busy
                         }
                         onChange={(
                           event
@@ -632,21 +1040,25 @@ export function InvestigationTriage() {
                           )
                         }
                       >
-                        {DEMO_OWNERS.map(
+                        {ownerChoices.map(
                           (
-                            username
+                            choice
                           ) => (
                             <option
                               key={
-                                username
+                                choice
                               }
                               value={
-                                username
+                                choice
                               }
                             >
                               {
-                                username
+                                choice
                               }
+                              {choice ===
+                              username
+                                ? " (you)"
+                                : ""}
                             </option>
                           )
                         )}
@@ -668,7 +1080,7 @@ export function InvestigationTriage() {
                         }
                         disabled={
                           !canManage ||
-                          action !== null
+                          busy
                         }
                         onChange={(
                           event
@@ -685,7 +1097,7 @@ export function InvestigationTriage() {
                       className="secondary-button"
                       disabled={
                         !canManage ||
-                        action !== null ||
+                        busy ||
                         note.trim()
                           .length ===
                           0
@@ -722,6 +1134,19 @@ export function InvestigationTriage() {
                         {selected.assignedBy
                           ? ` · assigned by ${selected.assignedBy}`
                           : ""}
+                        {selected.assignedAt && (
+                          <span
+                            className="ui-wf-age"
+                            title={`Assigned ${formatDateTime(
+                              selected.assignedAt
+                            )} UTC`}
+                          >
+                            {" · "}
+                            {formatRelativeTime(
+                              selected.assignedAt
+                            )}
+                          </span>
+                        )}
                       </span>
                     </div>
                   )}
@@ -744,13 +1169,15 @@ export function InvestigationTriage() {
         </div>
 
         <span>
-          {runs.length === 0
-            ? "No prior run"
-            : `${runs.length} retained run${
-                runs.length === 1
-                  ? ""
-                  : "s"
-              }`}
+          {runs === null
+            ? "History unavailable"
+            : runs.length === 0
+              ? "No prior run"
+              : `${runs.length} retained run${
+                  runs.length === 1
+                    ? ""
+                    : "s"
+                }`}
         </span>
       </div>
     </section>
@@ -834,44 +1261,10 @@ function Factor({
   );
 }
 
-function humanize(
-  value: string
-) {
-  return value
-    .toLowerCase()
-    .replaceAll(
-      "_",
-      " "
-    )
-    .replace(
-      /\b\w/g,
-      (
-        character
-      ) =>
-        character.toUpperCase()
-    );
-}
-
 function shortUser(
   value: string
 ) {
   return value.split(
     "@"
   )[0];
-}
-
-function formatDateTime(
-  value: string
-) {
-  return new Intl.DateTimeFormat(
-    "en-GB",
-    {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  ).format(
-    new Date(value)
-  );
 }

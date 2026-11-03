@@ -160,6 +160,61 @@ public class CaseWorkspaceService {
         );
     }
 
+    /**
+     * Takes the case off its current owner. Asking for this on a case
+     * nobody owns changes nothing and records no event.
+     */
+    @Transactional(
+            transactionManager = "transactionManager"
+    )
+    public CaseWorkspaceView unassign(
+            UUID caseId,
+            String actor
+    ) {
+        InvestigationCaseEntity investigationCase =
+                requireCase(caseId);
+
+        String previous =
+                investigationCase.getAssignedTo();
+
+        if (
+                previous == null
+                        || previous.isBlank()
+        ) {
+            return toWorkspace(
+                    investigationCase
+            );
+        }
+
+        String normalizedActor =
+                normalizeActor(actor);
+
+        Instant now = Instant.now();
+
+        investigationCase.assignTo(
+                null,
+                now
+        );
+
+        caseRepository.save(
+                investigationCase
+        );
+
+        recordEvent(
+                investigationCase,
+                CaseEventEntity.EventType.ASSIGNEE_CHANGED,
+                "Case unassigned (was "
+                        + previous
+                        + ").",
+                normalizedActor,
+                now
+        );
+
+        return toWorkspace(
+                investigationCase
+        );
+    }
+
     @Transactional(
             transactionManager = "transactionManager"
     )

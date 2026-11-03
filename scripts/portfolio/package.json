@@ -1,0 +1,13 @@
+{
+  "name": "fincrime-graph-portfolio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Takes screenshots of FinCrime Graph and writes the portfolio/ folder",
+  "scripts": {
+    "capture": "node capture.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.56.0"
+  }
+}

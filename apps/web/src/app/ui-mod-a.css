@@ -1,0 +1,237 @@
+/* Module group a styles (prefix in the class names is unique to this file). */
+
+/* ---------- shared bits for the four screens ---------- */
+
+.ui-wf-count-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 16px;
+
+  padding-right: 16px;
+}
+
+.ui-wf-muted {
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.ui-wf-count-row .ui-wf-muted {
+  padding-top: 12px;
+}
+
+.ui-wf-summary {
+  margin: 12px 16px 0;
+}
+
+.ui-wf-hint {
+  margin: 10px 14px 0;
+
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.ui-notice.ui-wf-ok {
+  border-color: rgba(40, 200, 183, 0.32);
+
+  color: #8ee6da;
+  background: rgba(40, 200, 183, 0.1);
+}
+
+.triage-row-copy .ui-wf-age,
+.ui-wf-age {
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.triage-owner-current .ui-wf-age {
+  display: inline;
+  margin: 0;
+}
+
+.investigation-finding-top span .ui-wf-age {
+  display: inline;
+
+  margin: 0;
+
+  font-size: 12px;
+}
+
+/* A list that is empty (no data yet) leaves no empty frame behind. */
+.investigation-finding-list:empty,
+.risk-factor-list:empty {
+  display: none;
+}
+
+.watchlist-layout[hidden] {
+  display: none;
+}
+
+/* Pager that stays visible at the bottom of a scrolling list. */
+.triage-list .ui-pager,
+.customer-risk-list .ui-pager,
+.screening-hit-list .ui-pager {
+  position: sticky;
+  bottom: 0;
+
+  flex-wrap: wrap;
+  gap: 8px 10px;
+
+  padding: 10px 12px;
+
+  background: var(--surface);
+}
+
+.triage-list .ui-pager .secondary-button,
+.customer-risk-list .ui-pager .secondary-button,
+.screening-hit-list .ui-pager .secondary-button {
+  padding-right: 10px;
+  padding-left: 10px;
+}
+
+.triage-list .state-card,
+.customer-risk-list .state-card,
+.screening-hit-list .state-card {
+  margin: 12px;
+}
+
+/* ---------- risk band tiles that filter the list ---------- */
+
+.ui-wf-metric-btn {
+  width: 100%;
+
+  border-top: 0;
+  border-bottom: 0;
+  border-left: 0;
+  border-radius: 0;
+
+  color: inherit;
+  background: transparent;
+
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ui-wf-metric-btn:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ui-wf-metric-btn.active {
+  background: rgba(52, 127, 245, 0.14);
+
+  box-shadow: inset 0 -2px 0 var(--blue, #347ff5);
+}
+
+.ui-wf-metric-btn:focus-visible {
+  outline: 2px solid #4c8cf6;
+  outline-offset: -2px;
+}
+
+/* ---------- watchlist entries ---------- */
+
+.ui-wf-details {
+  margin: 16px;
+
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+}
+
+.ui-wf-details > summary {
+  padding: 12px 14px;
+
+  color: var(--text);
+
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.ui-wf-details > summary:focus-visible {
+  outline: 2px solid #4c8cf6;
+  outline-offset: 2px;
+}
+
+.ui-wf-details[open] > summary {
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.ui-wf-table-wrap {
+  overflow-x: auto;
+}
+
+.ui-wf-table {
+  width: 100%;
+  min-width: 780px;
+
+  border-collapse: collapse;
+
+  font-size: 12.5px;
+}
+
+.ui-wf-table th,
+.ui-wf-table td {
+  padding: 9px 12px;
+
+  border-bottom: 1px solid var(--border-soft);
+
+  color: var(--text-muted);
+
+  text-align: left;
+  vertical-align: top;
+}
+
+.ui-wf-table thead th {
+  color: var(--text-soft);
+
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ui-wf-table tbody th {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.ui-wf-table .ui-wf-muted {
+  display: block;
+
+  margin-top: 2px;
+
+  font-weight: 400;
+}
+
+.ui-wf-pill {
+  display: inline-block;
+
+  padding: 2px 9px;
+
+  border: 1px solid var(--border);
+  border-radius: 999px;
+
+  color: var(--text-muted);
+
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.ui-wf-pill-ok {
+  border-color: rgba(40, 200, 183, 0.5);
+
+  color: #8ee6da;
+}
+
+@media (max-width: 650px) {
+  .ui-wf-metric-btn {
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .ui-wf-details {
+    margin: 12px;
+  }
+}

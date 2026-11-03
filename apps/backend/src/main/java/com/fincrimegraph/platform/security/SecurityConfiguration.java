@@ -263,15 +263,13 @@ public class SecurityConfiguration {
                                 authorization
                                         .requestMatchers(
                                                 "/api/v1/auth/login",
-                                                "/actuator/health"
+                                                "/actuator/health",
+                                                "/actuator/health/**",
+                                                "/error"
                                         )
                                         .permitAll()
-                                        .requestMatchers(
-                                                "/api/**"
-                                        )
-                                        .authenticated()
                                         .anyRequest()
-                                        .permitAll()
+                                        .authenticated()
                 )
                 .oauth2ResourceServer(
                         resourceServer ->

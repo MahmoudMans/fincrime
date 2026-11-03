@@ -7,6 +7,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.List;
 
 @Service
@@ -15,11 +16,13 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
     private final SecurityAuditService auditService;
+    private final LoginThrottle loginThrottle;
 
     public AuthService(
             AuthenticationManager authenticationManager,
             TokenService tokenService,
-            SecurityAuditService auditService
+            SecurityAuditService auditService,
+            LoginThrottle loginThrottle
     ) {
         this.authenticationManager =
                 authenticationManager;
@@ -29,12 +32,26 @@ public class AuthService {
 
         this.auditService =
                 auditService;
+
+        this.loginThrottle =
+                loginThrottle;
     }
 
     public TokenService.TokenView login(
             String username,
             String password
     ) throws AuthenticationException {
+
+        Duration wait =
+                loginThrottle.remainingLock(
+                        username
+                );
+
+        if (!wait.isZero()) {
+            throw new LoginThrottledException(
+                    wait
+            );
+        }
 
         try {
             Authentication authentication =
@@ -59,6 +76,10 @@ public class AuthService {
                             displayName
                     );
 
+            loginThrottle.recordSuccess(
+                    username
+            );
+
             auditService.record(
                     authentication.getName(),
                     "AUTH_LOGIN",
@@ -73,6 +94,11 @@ public class AuthService {
         } catch (
                 AuthenticationException exception
         ) {
+            boolean locked =
+                    loginThrottle.recordFailure(
+                            username
+                    );
+
             auditService.record(
                     username,
                     "AUTH_LOGIN",
@@ -81,6 +107,23 @@ public class AuthService {
                     "FAILED",
                     "Invalid credentials."
             );
+
+            if (locked) {
+                auditService.record(
+                        username,
+                        "AUTH_LOGIN",
+                        "SESSION",
+                        null,
+                        "LOCKED",
+                        "Sign-in locked for "
+                                + LoginThrottle
+                                .LOCK_DURATION
+                                .toMinutes()
+                                + " minutes after "
+                                + LoginThrottle.MAX_FAILURES
+                                + " failed attempts."
+                );
+            }
 
             throw exception;
         }
